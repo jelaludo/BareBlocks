@@ -1,5 +1,5 @@
 """
-Core module for Exif metadata extraction and aggregation.
+Core module for BareBlocks metadata extraction and aggregation.
 """
 
 __version__ = "1.0.0"

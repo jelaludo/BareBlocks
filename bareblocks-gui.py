@@ -5,7 +5,6 @@ import exifread
 import os
 import json
 from datetime import datetime
-import moviepy.editor as mp
 import eyed3
 import magic
 import io
@@ -14,10 +13,17 @@ import pdfplumber
 from docx import Document
 import webbrowser
 
-class ExifMetadataGUI:
+# Optional imports
+try:
+    import moviepy.editor as mp
+    HAS_MOVIEPY = True
+except ImportError:
+    HAS_MOVIEPY = False
+
+class BareBlocksMetadataGUI:
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("Exif Metadata Extractor")
+        self.window.title("BareBlocks Metadata Extractor")
         self.window.geometry("1200x800")
         self.window.configure(bg="#1e1e1e")
         
@@ -65,7 +71,7 @@ class ExifMetadataGUI:
         self.logo_label.pack(side=tk.LEFT, padx=5)
         
         self.title_label = ttk.Label(self.header_frame, 
-                                   text="Exif Metadata Extractor",
+                                   text="BareBlocks Metadata Extractor",
                                    font=('Arial', 18),
                                    style="Custom.TLabel")
         self.title_label.pack(side=tk.LEFT, padx=5)
@@ -236,15 +242,21 @@ class ExifMetadataGUI:
                     
             elif mime_type.startswith('video/'):
                 # Video metadata
-                video = mp.VideoFileClip(file_path)
-                video_info = {
-                    "Duration": f"{video.duration:.2f} seconds",
-                    "Resolution": f"{video.size[0]}x{video.size[1]}",
-                    "FPS": f"{video.fps:.2f}",
-                    "Audio": "Yes" if video.audio else "No"
-                }
-                self.metadata["🎥 Video Information"] = video_info
-                video.close()
+                if HAS_MOVIEPY:
+                    try:
+                        video = mp.VideoFileClip(file_path)
+                        video_info = {
+                            "Duration": f"{video.duration:.2f} seconds",
+                            "Resolution": f"{video.size[0]}x{video.size[1]}",
+                            "FPS": f"{video.fps:.2f}",
+                            "Audio": "Yes" if video.audio else "No"
+                        }
+                        self.metadata["🎥 Video Information"] = video_info
+                        video.close()
+                    except Exception as e:
+                        self.metadata["🎥 Video Information"] = {"Error": f"Could not extract video metadata: {str(e)}"}
+                else:
+                    self.metadata["🎥 Video Information"] = {"Note": "moviepy not installed - video metadata extraction unavailable"}
                 
             elif mime_type.startswith('audio/'):
                 # Audio metadata
@@ -315,5 +327,5 @@ class ExifMetadataGUI:
         self.window.mainloop()
 
 if __name__ == "__main__":
-    app = ExifMetadataGUI()
+    app = BareBlocksMetadataGUI()
     app.run() 

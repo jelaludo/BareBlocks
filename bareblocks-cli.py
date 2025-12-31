@@ -2,7 +2,6 @@
 import os
 import sys
 import json
-import magic
 import exifread
 import eyed3
 from PIL import Image
@@ -24,10 +23,23 @@ from rich.tree import Tree
 from rich.style import Style
 from rich.text import Text
 
+# Try to import magic, fallback to mimetypes if not available
+try:
+    import magic
+    HAS_MAGIC = True
+except ImportError:
+    HAS_MAGIC = False
+
 class MetadataExtractor:
     def __init__(self):
         self.console = Console()
-        self.mime = magic.Magic(mime=True)
+        if HAS_MAGIC:
+            try:
+                self.mime = magic.Magic(mime=True)
+            except Exception:
+                self.mime = None
+        else:
+            self.mime = None
         
     def convert_to_degrees(self, value):
         """Convert GPS coordinates to degrees"""
@@ -63,13 +75,32 @@ class MetadataExtractor:
         return f"https://www.google.com/maps?q={lat},{lon}"
 
     def detect_file_type(self, file_path):
-        """Detect file type using python-magic"""
-        try:
-            mime_type = self.mime.from_file(file_path)
+        """Detect file type using python-magic or mimetypes fallback"""
+        if self.mime:
+            try:
+                mime_type = self.mime.from_file(file_path)
+                return mime_type
+            except Exception as e:
+                pass
+        
+        # Fallback to mimetypes
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type:
             return mime_type
-        except Exception as e:
-            self.console.print(f"[red]Error detecting file type: {str(e)}[/red]")
-            return None
+        
+        # Last resort: check file extension
+        ext = Path(file_path).suffix.lower()
+        ext_to_mime = {
+            '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+            '.png': 'image/png', '.gif': 'image/gif',
+            '.bmp': 'image/bmp', '.tiff': 'image/tiff',
+            '.mp4': 'video/mp4', '.avi': 'video/x-msvideo',
+            '.mov': 'video/quicktime', '.mkv': 'video/x-matroska',
+            '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+            '.flac': 'audio/flac', '.pdf': 'application/pdf',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        return ext_to_mime.get(ext, 'application/octet-stream')
 
     def get_basic_file_info(self, file_path):
         """Get basic file information"""

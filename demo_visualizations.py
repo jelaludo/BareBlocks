@@ -23,7 +23,7 @@ import time
 sys.path.insert(0, str(Path(__file__).parent))
 
 print("=" * 70)
-print("  Exif Metadata Visualization Demo")
+print("  BareBlocks Metadata Visualization Demo")
 print("=" * 70)
 print()
 
@@ -230,7 +230,7 @@ try:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EXIF Metadata Dashboard</title>
+    <title>BareBlocks Metadata Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -342,7 +342,7 @@ try:
 </head>
 <body>
     <div class="header">
-        <h1>📊 EXIF Metadata Dashboard</h1>
+        <h1>📊 BareBlocks Metadata Dashboard</h1>
         <div class="stats-bar">
             <div class="stat-item">
                 <span>📁 Files:</span>

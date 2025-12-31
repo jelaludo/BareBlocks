@@ -145,7 +145,7 @@ with open(index_path, 'w') as f:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EXIF Metadata Dashboard</title>
+    <title>BareBlocks Metadata Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -263,7 +263,7 @@ with open(index_path, 'w') as f:
 </head>
 <body>
     <div class="header">
-        <h1>📊 EXIF Metadata Dashboard</h1>
+        <h1>📊 BareBlocks Metadata Dashboard</h1>
         <div class="header-info">150 files • 5 cameras • 7 visualizations</div>
     </div>
     <div class="dashboard">

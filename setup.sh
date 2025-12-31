@@ -1,8 +1,8 @@
 #!/bin/bash
-# Setup script for Exif Metadata Dashboard Project
+# Setup script for BareBlocks Metadata Dashboard Project
 
 echo "======================================================"
-echo "  Exif Metadata Dashboard - Setup Script"
+echo "  BareBlocks Metadata Dashboard - Setup Script"
 echo "======================================================"
 echo ""
 
@@ -152,7 +152,7 @@ Quick test script to verify setup.
 """
 
 print("\n" + "="*60)
-print("  Testing Exif Metadata Dashboard Setup")
+print("  Testing BareBlocks Metadata Dashboard Setup")
 print("="*60 + "\n")
 
 # Test imports

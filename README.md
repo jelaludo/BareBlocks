@@ -1,16 +1,16 @@
-# 📸 Exif - Comprehensive Metadata Tool  
+# 📸 BareBlocks - Comprehensive Metadata Tool  
 
 <p align="center">
   <img src="images/ExIF-Logo_BackgroundWhite.png" alt="GUI Screenshot" width="200">
 </p>
 
 ## 🔎 Overview  
-**Exif** is a powerful metadata extraction and management tool that supports multiple file types including **images, videos, audio, and documents**.  
+**BareBlocks** is a powerful metadata extraction and management tool that supports multiple file types including **images, videos, audio, and documents**.  
 It provides:  
 - 🖥️ A **modern GUI** for beginners  
 - 💻 A **command-line interface (CLI)** for advanced users  
 
-Use Exif to **extract, analyze, edit, and remove metadata** with ease.  
+Use BareBlocks to **extract, analyze, edit, and remove metadata** with ease.  
 
 ---
 
@@ -18,12 +18,12 @@ Use Exif to **extract, analyze, edit, and remove metadata** with ease.
 
 ### Main Interface  
 <p align="center">
-  <img src="images/screenshot.png" alt="Exif GUI Main Interface" width="800">
+  <img src="images/screenshot.png" alt="BareBlocks GUI Main Interface" width="800">
 </p>
 
 ### Document Metadata View  
 <p align="center">
-  <img src="images/screenshot_pdf.png" alt="Exif GUI PDF Metadata" width="800">
+  <img src="images/screenshot_pdf.png" alt="BareBlocks GUI PDF Metadata" width="800">
 </p>
 
 ---
@@ -101,16 +101,16 @@ This will:
 1. Clone the repository:
 ### GUI Application  
 ```bash
-git clone https://github.com/AryanVBW/Exif.git
-cd Exif
-python exif-gui.py
+git clone https://github.com/AryanVBW/BareBlocks.git
+cd BareBlocks
+python bareblocks-gui.py
 ```
 
 ### CLI Tool  
 ```bash
-git clone https://github.com/AryanVBW/Exif.git
-cd Exif
-python exif-cli.py path/to/file
+git clone https://github.com/AryanVBW/BareBlocks.git
+cd BareBlocks
+python bareblocks-cli.py path/to/file
 ```
 
 ---
@@ -119,7 +119,7 @@ python exif-cli.py path/to/file
 
 ### Extract metadata from image  
 ```bash
-python exif-cli.py photo.jpg
+python bareblocks-cli.py photo.jpg
 ```
 
 ### 📊 Visualization Dashboard
@@ -227,12 +227,13 @@ bash setup.sh
 ## Project Structure
 
 ```
-Exif/
-├── exif-gui.py              # GUI application (tkinter-based)
-├── exif-cli.py              # Command-line interface tool
-├── exif-main.py             # Main CLI script
-├── exif.py                  # Terminal output version
-├── remove-exif.py           # Remove EXIF data from images
+BareBlocks/
+├── bareblocks-gui.py        # GUI application (tkinter-based)
+├── bareblocks-cli.py         # Command-line interface tool
+├── bareblocks-main.py       # Main CLI script
+├── bareblocks.py            # Terminal output version
+├── bareblocks-remove.py     # Remove EXIF data from images
+├── bareblocks-cdv.py        # CSV export version
 ├── test_visualizations.py   # Quick test with sample data
 ├── demo_visualizations.py   # Full demo with your files
 ├── setup.sh                 # Automated setup script
@@ -255,7 +256,7 @@ Exif/
 
 ### Extract Metadata from Single File
 ```bash
-python exif-cli.py photo.jpg
+python bareblocks-cli.py photo.jpg
 ```
 
 ### Process Multiple Files
@@ -265,7 +266,7 @@ python demo_visualizations.py
 
 ### View in GUI
 ```bash
-python exif-gui.py
+python bareblocks-gui.py
 ```
 
 ### Quick Visualization Test
@@ -311,22 +312,22 @@ Created by AryanVBW
 1. Install the required dependencies:
 ### Save metadata to JSON  
 ```bash
-python exif-cli.py video.mp4 --format json --save metadata.json
+python bareblocks-cli.py video.mp4 --format json --save metadata.json
 ```
 
 ### Remove EXIF data from image  
 ```bash
-python remove-exif.py image.jpg
+python bareblocks-remove.py image.jpg
 ```
 
 ### Auto-open GPS in Google Maps  
 ```bash
-python exif-cli.py photo.jpg --open-maps
+python bareblocks-cli.py photo.jpg --open-maps
 ```
 
 ### Batch process multiple files  
 ```bash
-python exif-cli.py *.jpg --format json
+python bareblocks-cli.py *.jpg --format json
 ```
 
 ---
@@ -335,11 +336,11 @@ python exif-cli.py *.jpg --format json
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `--format json` | Export metadata in JSON format | `python exif-cli.py file.jpg --format json` |
-| `--save file.json` | Save metadata to file | `python exif-cli.py file.mp4 --save meta.json` |
-| `--open-maps` | Open GPS location in Google Maps | `python exif-cli.py photo.jpg --open-maps` |
-| `-all=` | Remove all metadata from file | `python remove-exif.py file.jpg` |
-| `-overwrite_original` | Overwrite files without backup | `python exif-cli.py file.jpg -overwrite_original` |
+| `--format json` | Export metadata in JSON format | `python bareblocks-cli.py file.jpg --format json` |
+| `--save file.json` | Save metadata to file | `python bareblocks-cli.py file.mp4 --save meta.json` |
+| `--open-maps` | Open GPS location in Google Maps | `python bareblocks-cli.py photo.jpg --open-maps` |
+| `-all=` | Remove all metadata from file | `python bareblocks-remove.py file.jpg` |
+| `-overwrite_original` | Overwrite files without backup | `python bareblocks-cli.py file.jpg -overwrite_original` |
 
 ---
 
@@ -367,22 +368,22 @@ python exif-cli.py *.jpg --format json
 
 ## ❓ FAQ  
 
-**Q1: Is Exif safe to use?**  
+**Q1: Is BareBlocks safe to use?**  
 ✅ Yes, but always back up your files before modifying metadata.  
 
-**Q2: Does Exif overwrite files?**  
+**Q2: Does BareBlocks overwrite files?**  
 By default, backups are created. Use `-overwrite_original` to skip them.  
 
 **Q3: Is it cross-platform?**  
 Yes, works on **Windows, macOS, and Linux**.  
 
-**Q4: Can Exif handle videos and audio files?**  
+**Q4: Can BareBlocks handle videos and audio files?**  
 Yes, basic metadata extraction is supported for video and audio formats.  
 
 **Q5: How can I see all available metadata fields in a file?**  
 Run:  
 ```bash
-python exif-cli.py file.jpg --format json
+python bareblocks-cli.py file.jpg --format json
 ```
 
 ---
