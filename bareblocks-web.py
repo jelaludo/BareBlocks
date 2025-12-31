@@ -64,7 +64,7 @@ HTML_TEMPLATE = """
         }
         
         .terminal-title {
-            color: #58a6ff;
+            color: #6FC3DF;
             font-weight: bold;
             font-size: 14px;
         }
@@ -89,13 +89,13 @@ HTML_TEMPLATE = """
         .tab-button:hover {
             background: #21262d;
             color: #c9d1d9;
-            border-color: #58a6ff;
+            border-color: #6FC3DF;
         }
         
         .tab-button.active {
             background: #0d1117;
-            color: #58a6ff;
-            border-color: #58a6ff;
+            color: #6FC3DF;
+            border-color: #6FC3DF;
         }
         
         .parsing-flow-content {
@@ -110,26 +110,44 @@ HTML_TEMPLATE = """
             display: block;
         }
         
-        .parsing-flow-content h3 {
-            color: #00ff9d;
-            font-size: 13px;
-            margin: 15px 0 8px 0;
-            font-weight: bold;
+        .parsing-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 10px 0;
         }
         
-        .parsing-flow-content h3:first-child {
-            margin-top: 0;
+        @media (max-width: 768px) {
+            .parsing-flow-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .parsing-flow-phase {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        
+        .parsing-flow-content h3 {
+            color: #89D185;
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            font-weight: bold;
         }
         
         .parsing-flow-content .phase-desc {
             color: #8b949e;
-            margin-left: 20px;
-            margin-bottom: 15px;
+            margin-left: 0;
+            margin-bottom: 0;
             white-space: pre-line;
+            font-size: 10px;
+            line-height: 1.5;
         }
         
         .parsing-flow-content .phase-title {
-            color: #58a6ff;
+            color: #6FC3DF;
             font-weight: bold;
         }
         
@@ -171,16 +189,16 @@ HTML_TEMPLATE = """
         }
         
         .prompt {
-            color: #58a6ff;
+            color: #6FC3DF;
         }
         
         .title {
-            color: #00ff9d;
+            color: #89D185;
             font-weight: bold;
         }
         
         .subtitle {
-            color: #6366f1;
+            color: #9CDCFE;
             font-style: italic;
         }
         
@@ -189,59 +207,94 @@ HTML_TEMPLATE = """
         }
         
         .output {
-            color: #7c3aed;
+            color: #B294BB;
         }
         
         .error {
-            color: #f85149;
+            color: #E06C75;
         }
         
         .success {
-            color: #3fb950;
+            color: #98C379;
         }
         
         .warning {
-            color: #d29922;
+            color: #E5C07B;
         }
         
         .info {
-            color: #58a6ff;
+            color: #61AFEF;
         }
         
         .phase {
-            color: #00ff9d;
+            color: #56B6C2;
         }
         
         .summary {
-            color: #6366f1;
+            color: #9CDCFE;
         }
         
         .structure {
-            color: #ec4899;
+            color: #C678DD;
         }
         
         .metadata {
-            color: #f59e0b;
+            color: #D19A66;
         }
         
         .payload {
-            color: #8b5cf6;
+            color: #B294BB;
         }
         
         .ai {
-            color: #06b6d4;
+            color: #56B6C2;
         }
         
         .anomaly {
-            color: #ef4444;
+            color: #E06C75;
         }
         
         .comfyui {
-            color: #f59e0b;
+            color: #D19A66;
+        }
+        
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 10px 0;
+        }
+        
+        @media (max-width: 1200px) {
+            .metadata-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .metadata-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .metadata-section {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .metadata-section-title {
+            color: #6FC3DF;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #30363d;
         }
         
         .metadata-table {
-            margin: 5px 0;
+            margin: 0;
             border-collapse: collapse;
             width: 100%;
             font-size: 11px;
@@ -279,7 +332,7 @@ HTML_TEMPLATE = """
         }
         
         .metadata-table .toggle {
-            color: #58a6ff;
+            color: #6FC3DF;
             font-weight: bold;
             margin-left: 5px;
         }
@@ -290,7 +343,7 @@ HTML_TEMPLATE = """
         
         .metadata-table th {
             background: #161b22;
-            color: #58a6ff;
+            color: #6FC3DF;
             font-weight: bold;
         }
         
@@ -299,38 +352,38 @@ HTML_TEMPLATE = """
         }
         
         .metadata-table.table-summary th {
-            color: #6366f1;
-            border-bottom: 2px solid #6366f1;
+            color: #9CDCFE;
+            border-bottom: 2px solid #9CDCFE;
         }
         
         .metadata-table.table-structure th {
-            color: #ec4899;
-            border-bottom: 2px solid #ec4899;
+            color: #C678DD;
+            border-bottom: 2px solid #C678DD;
         }
         
         .metadata-table.table-metadata th {
-            color: #f59e0b;
-            border-bottom: 2px solid #f59e0b;
+            color: #D19A66;
+            border-bottom: 2px solid #D19A66;
         }
         
         .metadata-table.table-payload th {
-            color: #8b5cf6;
-            border-bottom: 2px solid #8b5cf6;
+            color: #B294BB;
+            border-bottom: 2px solid #B294BB;
         }
         
         .metadata-table.table-ai th {
-            color: #06b6d4;
-            border-bottom: 2px solid #06b6d4;
+            color: #56B6C2;
+            border-bottom: 2px solid #56B6C2;
         }
         
         .metadata-table.table-anomaly th {
-            color: #ef4444;
-            border-bottom: 2px solid #ef4444;
+            color: #E06C75;
+            border-bottom: 2px solid #E06C75;
         }
         
         .metadata-table.table-comfyui th {
-            color: #f59e0b;
-            border-bottom: 2px solid #f59e0b;
+            color: #D19A66;
+            border-bottom: 2px solid #D19A66;
         }
         
         .data-recap {
@@ -346,7 +399,7 @@ HTML_TEMPLATE = """
         }
         
         .found {
-            color: #3fb950;
+            color: #98C379;
             font-weight: bold;
         }
         
@@ -363,7 +416,7 @@ HTML_TEMPLATE = """
         }
         
         .input-prompt {
-            color: #58a6ff;
+            color: #6FC3DF;
             margin-right: 10px;
         }
         
@@ -392,12 +445,12 @@ HTML_TEMPLATE = """
         }
         
         .upload-area:hover {
-            border-color: #58a6ff;
+            border-color: #6FC3DF;
             background: #161b22;
         }
         
         .upload-area.dragover {
-            border-color: #58a6ff;
+            border-color: #6FC3DF;
             background: #0c1116;
         }
         
@@ -473,27 +526,21 @@ HTML_TEMPLATE = """
         <div class="terminal-body" id="terminal"><div class="terminal-line"><span class="prompt">$</span> <span class="title">BareBlocks - Metadata Inspector</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="subtitle">Making image files legible beyond their pixels</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks --help</span></div><div class="terminal-line output">Usage: bareblocks &lt;file_path&gt; [options]</div><div class="terminal-line output">Options:</div><div class="terminal-line output">&nbsp;&nbsp;--format json    Output as JSON</div><div class="terminal-line output">&nbsp;&nbsp;--save FILE      Save metadata to file</div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks &lt;file&gt;</span></div></div>
         
         <div class="parsing-flow-content" id="parsingFlow">
-            <h3><span class="phase-title">Phase 0: Orchestration</span></h3>
-            <div class="phase-desc">Entry point: phase_0_orchestrate(file_path)
+            <div class="parsing-flow-grid">
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 0: Orchestration</span></h3><div class="phase-desc">Entry point: phase_0_orchestrate(file_path)
 Calls phases 1–8 sequentially
-Aggregates results into final report</div>
-            
-            <h3><span class="phase-title">Phase 1: File Intake</span></h3>
-            <div class="phase-desc">Reads file into memory
+Aggregates results into final report</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 1: File Intake</span></h3><div class="phase-desc">Reads file into memory
 Validates file exists and is readable
 Records file size, path, name
-Returns basic file info</div>
-            
-            <h3><span class="phase-title">Phase 2: Container Identification</span></h3>
-            <div class="phase-desc">Reads first 8–16 bytes (magic bytes)
+Returns basic file info</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 2: Container Identification</span></h3><div class="phase-desc">Reads first 8–16 bytes (magic bytes)
 Matches against known signatures:
   PNG: 89 50 4E 47 0D 0A 1A 0A
   JPEG: FF D8 FF
   WEBP: RIFF...WEBP
-Returns container type and confidence</div>
-            
-            <h3><span class="phase-title">Phase 3: Structural Enumeration (PNG example)</span></h3>
-            <div class="phase-desc">Skips signature (8 bytes)
+Returns container type and confidence</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 3: Structural Enumeration (PNG example)</span></h3><div class="phase-desc">Skips signature (8 bytes)
 Iterates chunks:
   Read 4-byte length (big-endian)
   Read 4-byte chunk type (ASCII)
@@ -502,16 +549,12 @@ Iterates chunks:
   Record: type, offset, size, hasData flag
 Classifies: pixel data (IDAT) vs metadata (tEXt, zTXt, iTXt, etc.)
 Stops at IEND
-Returns: chunk list, pixel bytes, non-pixel bytes</div>
-            
-            <h3><span class="phase-title">Phase 4: Declared Metadata</span></h3>
-            <div class="phase-desc">Uses exifread for EXIF/IPTC/XMP
+Returns: chunk list, pixel bytes, non-pixel bytes</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 4: Declared Metadata</span></h3><div class="phase-desc">Uses exifread for EXIF/IPTC/XMP
 Uses PIL for image properties (dimensions, mode, format)
 Extracts GPS if present
-Returns structured metadata dict</div>
-            
-            <h3><span class="phase-title">Phase 5: Opaque Payload Detection</span></h3>
-            <div class="phase-desc">For each non-pixel chunk (tEXt, zTXt, iTXt):
+Returns structured metadata dict</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 5: Opaque Payload Detection</span></h3><div class="phase-desc">For each non-pixel chunk (tEXt, zTXt, iTXt):
   Read chunk data from file at recorded offset
   Parse tEXt: keyword\0value (split on null byte)
   Parse zTXt: decompress with zlib after keyword/compression byte
@@ -519,27 +562,19 @@ Returns structured metadata dict</div>
   Attempt JSON parse
   Classify: json, text, or binary
   Calculate entropy if binary
-Returns: payload array with source, size, classification, content</div>
-            
-            <h3><span class="phase-title">Phase 6: AI Pattern Recognition</span></h3>
-            <div class="phase-desc">Scans payloads for:
+Returns: payload array with source, size, classification, content</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 6: AI Pattern Recognition</span></h3><div class="phase-desc">Scans payloads for:
   JSON with nodes, workflow, or prompt keys
   String content containing "comfy", "workflow", "CLIPTextEncode"
 Sets tool: "ComfyUI" if detected
-Returns: AI metadata dict</div>
-            
-            <h3><span class="phase-title">Phase 7: Anomaly Heuristics</span></h3>
-            <div class="phase-desc">Computes: non-pixel ratio = non-pixel bytes / total bytes
+Returns: AI metadata dict</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 7: Anomaly Heuristics</span></h3><div class="phase-desc">Computes: non-pixel ratio = non-pixel bytes / total bytes
 Flags if ratio > threshold (e.g., >0.1)
-Returns: anomaly flags and statistics</div>
-            
-            <h3><span class="phase-title">Phase 8: Report Assembly</span></h3>
-            <div class="phase-desc">Merges all phase outputs
+Returns: anomaly flags and statistics</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 8: Report Assembly</span></h3><div class="phase-desc">Merges all phase outputs
 Structures as: summary, structure, metadata, payloads, aiMetadata, anomalies
-Returns: complete inspection report</div>
-            
-            <h3><span class="phase-title">Web Interface Processing</span></h3>
-            <div class="phase-desc">Receives report JSON
+Returns: complete inspection report</div></div>
+                <div class="parsing-flow-phase"><h3><span class="phase-title">Web Interface Processing</span></h3><div class="phase-desc">Receives report JSON
 Extracts ComfyUI data:
   Finds payload with keyword: "prompt" → node structure
   Finds payload with keyword: "workflow" → workflow structure
@@ -548,7 +583,8 @@ Extracts ComfyUI data:
   Extracts LoRA from LoraLoader node
   Extracts sampler/steps from KSampler node
 Displays: workflow params → prompt (green) → workflow info
-Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Field Extraction → Display</div>
+Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Field Extraction → Display</div></div>
+            </div>
         </div>
         
         <div class="input-area">
@@ -634,13 +670,13 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             // Highlight text in brackets like [text], __text__, (text), etc.
             // Also handle wildcards like __mklinkwildcards/catbreed__
             return escapeHtml(text)
-                .replace(/(\[[^\]]+\])/g, '<span style="color: #3fb950;">$1</span>')
-                .replace(/(\([^)]+\))/g, '<span style="color: #3fb950;">$1</span>')
-                .replace(/(__[^_]+__)/g, '<span style="color: #3fb950;">$1</span>')
-                .replace(/(\{[^}]+\})/g, '<span style="color: #3fb950;">$1</span>');
+                .replace(/(\[[^\]]+\])/g, '<span style="color: #98C379;">$1</span>')
+                .replace(/(\([^)]+\))/g, '<span style="color: #98C379;">$1</span>')
+                .replace(/(__[^_]+__)/g, '<span style="color: #98C379;">$1</span>')
+                .replace(/(\{[^}]+\})/g, '<span style="color: #98C379;">$1</span>');
         }
         
-        function addMetadataTable(metadata, sectionType = '') {
+        function createMetadataTableHTML(metadata, sectionType = '') {
             const sectionClass = sectionType ? `table-${sectionType}` : '';
             let html = `<table class="metadata-table ${sectionClass}"><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>`;
             
@@ -680,7 +716,12 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             
             addRows(metadata);
             html += '</tbody></table>';
-            addLine(html);
+            return html;
+        }
+        
+        function addMetadataTable(metadata, sectionType = '') {
+            const tableHTML = createMetadataTableHTML(metadata, sectionType);
+            addLine(tableHTML);
         }
         
         function toggleRow(row) {
@@ -837,7 +878,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             addLine(recapHtml);
         }
         
-        function addComfyUISection(metadata) {
+        function addComfyUISection(metadata, targetContainer = null) {
             const payloads = metadata.payloads?.payloads || [];
             const aiMeta = metadata.aiMetadata?.aiMetadata || {};
             
@@ -1037,11 +1078,11 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 
                 // Show workflow details first
                 if (modelName) {
-                    html += `<tr><td><strong>Model</strong></td><td style="color: #58a6ff;">${escapeHtml(modelName)}</td></tr>`;
+                    html += `<tr><td><strong>Model</strong></td><td style="color: #6FC3DF;">${escapeHtml(modelName)}</td></tr>`;
                 }
                 
                 if (loraName) {
-                    html += `<tr><td><strong>LoRA</strong></td><td style="color: #58a6ff;">${escapeHtml(loraName)}</td></tr>`;
+                    html += `<tr><td><strong>LoRA</strong></td><td style="color: #6FC3DF;">${escapeHtml(loraName)}</td></tr>`;
                 }
                 
                 if (samplerName) {
@@ -1069,7 +1110,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 if (promptText) {
                     const fullPrompt = String(promptText);
                     // Show full prompt, no truncation, with green color
-                    html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #3fb950; font-weight: 500;">${highlightBracketedText(fullPrompt)}</td></tr>`;
+                    html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;">${highlightBracketedText(fullPrompt)}</td></tr>`;
                 }
                 
                 if (negativePrompt) {
@@ -1096,9 +1137,19 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 }
                 
                 html += '</tbody></table>';
-                addLine(html);
+                
+                if (targetContainer) {
+                    targetContainer.innerHTML = html;
+                } else {
+                    addLine(html);
+                }
             } else {
-                addOutput('ComfyUI workflow detected but could not parse structure', 'warning');
+                const errorMsg = '<div class="warning">ComfyUI workflow detected but could not parse structure</div>';
+                if (targetContainer) {
+                    targetContainer.innerHTML = errorMsg;
+                } else {
+                    addOutput('ComfyUI workflow detected but could not parse structure', 'warning');
+                }
             }
         }
         
@@ -1138,10 +1189,30 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         addDataRecap(data.metadata);
                     }
                     
-                    // Display summary first
+                    // Create metadata grid container
+                    const gridContainer = document.createElement('div');
+                    gridContainer.className = 'metadata-grid';
+                    terminal.appendChild(gridContainer);
+                    
+                    // Helper to add section to grid
+                    function addGridSection(title, content, sectionType) {
+                        const section = document.createElement('div');
+                        section.className = 'metadata-section';
+                        
+                        const titleEl = document.createElement('div');
+                        titleEl.className = 'metadata-section-title';
+                        titleEl.textContent = title;
+                        section.appendChild(titleEl);
+                        
+                        const contentEl = document.createElement('div');
+                        contentEl.innerHTML = content;
+                        section.appendChild(contentEl);
+                        
+                        gridContainer.appendChild(section);
+                    }
+                    
+                    // Display summary
                     if (data.metadata && data.metadata.summary) {
-                        addOutput('<span class="summary">Summary:</span>', 'output');
-                        // Format summary with enhanced fields
                         const summary = data.metadata.summary;
                         const formattedSummary = {};
                         
@@ -1189,19 +1260,20 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         if (summary.hasPayloads !== undefined) formattedSummary.hasPayloads = summary.hasPayloads;
                         if (summary.hasAiMetadata !== undefined) formattedSummary.hasAiMetadata = summary.hasAiMetadata;
                         
-                        addMetadataTable(formattedSummary, 'summary');
+                        const summaryTable = createMetadataTableHTML(formattedSummary, 'summary');
+                        addGridSection('Summary', summaryTable, 'summary');
                     }
                     
                     // Display structure
                     if (data.metadata && data.metadata.structure) {
-                        addOutput('<span class="structure">Structure:</span>', 'output');
-                        addMetadataTable(data.metadata.structure, 'structure');
+                        const structureTable = createMetadataTableHTML(data.metadata.structure, 'structure');
+                        addGridSection('Structure', structureTable, 'structure');
                     }
                     
                     // Display declared metadata
                     if (data.metadata && data.metadata.metadata) {
-                        addOutput('<span class="metadata">Declared Metadata:</span>', 'output');
-                        addMetadataTable(data.metadata.metadata, 'metadata');
+                        const metadataTable = createMetadataTableHTML(data.metadata.metadata, 'metadata');
+                        addGridSection('Declared Metadata', metadataTable, 'metadata');
                     }
                     
                     // Display ComfyUI section if workflow detected
@@ -1223,27 +1295,32 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                                      });
                     
                     if (hasComfyUI) {
-                        addOutput('<span class="comfyui">ComfyUI Workflow:</span>', 'output');
-                        addComfyUISection(data.metadata);
-                    }
-                    
-                    // Display payloads (but skip if ComfyUI section already showed them)
-                    if (data.metadata && data.metadata.payloads && !hasComfyUI) {
-                        addOutput('<span class="payload">Payloads:</span>', 'output');
-                        addMetadataTable(data.metadata.payloads, 'payload');
+                        // Create ComfyUI section HTML
+                        const comfyUISection = document.createElement('div');
+                        addComfyUISection(data.metadata, comfyUISection);
+                        const comfyContent = comfyUISection.innerHTML;
+                        addGridSection('ComfyUI Workflow', comfyContent, 'comfyui');
                     }
                     
                     // Display AI metadata
                     if (data.metadata && data.metadata.aiMetadata) {
-                        addOutput('<span class="ai">AI Metadata:</span>', 'output');
-                        addMetadataTable(data.metadata.aiMetadata, 'ai');
+                        const aiTable = createMetadataTableHTML(data.metadata.aiMetadata, 'ai');
+                        addGridSection('AI Metadata', aiTable, 'ai');
                     }
                     
                     // Display anomalies
                     if (data.metadata && data.metadata.anomalies) {
-                        addOutput('<span class="anomaly">Anomalies:</span>', 'output');
-                        addMetadataTable(data.metadata.anomalies, 'anomaly');
+                        const anomalyTable = createMetadataTableHTML(data.metadata.anomalies, 'anomaly');
+                        addGridSection('Anomalies', anomalyTable, 'anomaly');
                     }
+                    
+                    // Display payloads (but skip if ComfyUI section already showed them)
+                    if (data.metadata && data.metadata.payloads && !hasComfyUI) {
+                        const payloadTable = createMetadataTableHTML(data.metadata.payloads, 'payload');
+                        addGridSection('Payloads', payloadTable, 'payload');
+                    }
+                    
+                    terminal.scrollTop = terminal.scrollHeight;
                     
                     // Full metadata table as fallback
                     if (data.metadata) {
