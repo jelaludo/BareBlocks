@@ -57,10 +57,80 @@ HTML_TEMPLATE = """
             justify-content: space-between;
         }
         
+        .terminal-title-area {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
         .terminal-title {
             color: #58a6ff;
             font-weight: bold;
             font-size: 14px;
+        }
+        
+        .terminal-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tab-button {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        
+        .tab-button:hover {
+            background: #21262d;
+            color: #c9d1d9;
+            border-color: #58a6ff;
+        }
+        
+        .tab-button.active {
+            background: #0d1117;
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+        
+        .parsing-flow-content {
+            display: none;
+            padding: 15px 20px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+        
+        .parsing-flow-content.active {
+            display: block;
+        }
+        
+        .parsing-flow-content h3 {
+            color: #00ff9d;
+            font-size: 13px;
+            margin: 15px 0 8px 0;
+            font-weight: bold;
+        }
+        
+        .parsing-flow-content h3:first-child {
+            margin-top: 0;
+        }
+        
+        .parsing-flow-content .phase-desc {
+            color: #8b949e;
+            margin-left: 20px;
+            margin-bottom: 15px;
+            white-space: pre-line;
+        }
+        
+        .parsing-flow-content .phase-title {
+            color: #58a6ff;
+            font-weight: bold;
         }
         
         .terminal-controls {
@@ -383,7 +453,13 @@ HTML_TEMPLATE = """
 <body>
     <div class="terminal-container">
         <div class="terminal-header">
-            <div class="terminal-title">BareBlocks Terminal</div>
+            <div class="terminal-title-area">
+                <div class="terminal-title">BareBlocks Terminal</div>
+                <div class="terminal-tabs">
+                    <button class="tab-button active" id="mainTab" onclick="switchTab('main')">Terminal</button>
+                    <button class="tab-button" id="flowTab" onclick="switchTab('flow')">Parsing Flow</button>
+                </div>
+            </div>
             <div class="terminal-controls">
                 <button class="control-btn close" onclick="window.close()"></button>
                 <button class="control-btn minimize"></button>
@@ -392,6 +468,85 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="terminal-body" id="terminal"><div class="terminal-line"><span class="prompt">$</span> <span class="title">BareBlocks - Metadata Inspector</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="subtitle">Making image files legible beyond their pixels</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks --help</span></div><div class="terminal-line output">Usage: bareblocks &lt;file_path&gt; [options]</div><div class="terminal-line output">Options:</div><div class="terminal-line output">&nbsp;&nbsp;--format json    Output as JSON</div><div class="terminal-line output">&nbsp;&nbsp;--save FILE      Save metadata to file</div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks &lt;file&gt;</span></div></div>
+        
+        <div class="parsing-flow-content" id="parsingFlow">
+            <h3><span class="phase-title">Phase 0: Orchestration</span></h3>
+            <div class="phase-desc">Entry point: phase_0_orchestrate(file_path)
+Calls phases 1–8 sequentially
+Aggregates results into final report</div>
+            
+            <h3><span class="phase-title">Phase 1: File Intake</span></h3>
+            <div class="phase-desc">Reads file into memory
+Validates file exists and is readable
+Records file size, path, name
+Returns basic file info</div>
+            
+            <h3><span class="phase-title">Phase 2: Container Identification</span></h3>
+            <div class="phase-desc">Reads first 8–16 bytes (magic bytes)
+Matches against known signatures:
+  PNG: 89 50 4E 47 0D 0A 1A 0A
+  JPEG: FF D8 FF
+  WEBP: RIFF...WEBP
+Returns container type and confidence</div>
+            
+            <h3><span class="phase-title">Phase 3: Structural Enumeration (PNG example)</span></h3>
+            <div class="phase-desc">Skips signature (8 bytes)
+Iterates chunks:
+  Read 4-byte length (big-endian)
+  Read 4-byte chunk type (ASCII)
+  Read chunk data (length bytes)
+  Read 4-byte CRC
+  Record: type, offset, size, hasData flag
+Classifies: pixel data (IDAT) vs metadata (tEXt, zTXt, iTXt, etc.)
+Stops at IEND
+Returns: chunk list, pixel bytes, non-pixel bytes</div>
+            
+            <h3><span class="phase-title">Phase 4: Declared Metadata</span></h3>
+            <div class="phase-desc">Uses exifread for EXIF/IPTC/XMP
+Uses PIL for image properties (dimensions, mode, format)
+Extracts GPS if present
+Returns structured metadata dict</div>
+            
+            <h3><span class="phase-title">Phase 5: Opaque Payload Detection</span></h3>
+            <div class="phase-desc">For each non-pixel chunk (tEXt, zTXt, iTXt):
+  Read chunk data from file at recorded offset
+  Parse tEXt: keyword\0value (split on null byte)
+  Parse zTXt: decompress with zlib after keyword/compression byte
+  Attempt UTF-8 decode
+  Attempt JSON parse
+  Classify: json, text, or binary
+  Calculate entropy if binary
+Returns: payload array with source, size, classification, content</div>
+            
+            <h3><span class="phase-title">Phase 6: AI Pattern Recognition</span></h3>
+            <div class="phase-desc">Scans payloads for:
+  JSON with nodes, workflow, or prompt keys
+  String content containing "comfy", "workflow", "CLIPTextEncode"
+Sets tool: "ComfyUI" if detected
+Returns: AI metadata dict</div>
+            
+            <h3><span class="phase-title">Phase 7: Anomaly Heuristics</span></h3>
+            <div class="phase-desc">Computes: non-pixel ratio = non-pixel bytes / total bytes
+Flags if ratio > threshold (e.g., >0.1)
+Returns: anomaly flags and statistics</div>
+            
+            <h3><span class="phase-title">Phase 8: Report Assembly</span></h3>
+            <div class="phase-desc">Merges all phase outputs
+Structures as: summary, structure, metadata, payloads, aiMetadata, anomalies
+Returns: complete inspection report</div>
+            
+            <h3><span class="phase-title">Web Interface Processing</span></h3>
+            <div class="phase-desc">Receives report JSON
+Extracts ComfyUI data:
+  Finds payload with keyword: "prompt" → node structure
+  Finds payload with keyword: "workflow" → workflow structure
+  Iterates nodes, extracts inputs.text (string values only)
+  Extracts model from UNETLoader node
+  Extracts LoRA from LoraLoader node
+  Extracts sampler/steps from KSampler node
+Displays: workflow params → prompt (green) → workflow info
+Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Field Extraction → Display</div>
+        </div>
         
         <div class="input-area">
             <span class="input-prompt">$</span>
@@ -406,6 +561,27 @@ HTML_TEMPLATE = """
         const terminal = document.getElementById('terminal');
         const fileInput = document.getElementById('fileInput');
         const uploadArea = document.getElementById('uploadArea');
+        const parsingFlow = document.getElementById('parsingFlow');
+        
+        function switchTab(tab) {
+            const mainTab = document.getElementById('mainTab');
+            const flowTab = document.getElementById('flowTab');
+            
+            if (tab === 'main') {
+                terminal.style.display = 'flex';
+                parsingFlow.classList.remove('active');
+                mainTab.classList.add('active');
+                flowTab.classList.remove('active');
+            } else {
+                terminal.style.display = 'none';
+                parsingFlow.classList.add('active');
+                mainTab.classList.remove('active');
+                flowTab.classList.add('active');
+            }
+        }
+        
+        // Make switchTab globally accessible
+        window.switchTab = switchTab;
         
         function addLine(content, className = '') {
             const line = document.createElement('div');
