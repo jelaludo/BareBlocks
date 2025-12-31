@@ -386,11 +386,47 @@ class LayeredInspector:
             self.console.print("[dim]  WHAT: Outputs of all previous modules[/dim]")
             self.console.print("[dim]  STEPS: Merge results, preserve source attribution, attach uncertainty labels[/dim]\n")
         
+        # Extract image dimensions and date from metadata
+        metadata = all_results["phases"]["4_metadata"]
+        image_props = metadata.get("image_properties", {})
+        size_info = image_props.get("size", {})
+        width = size_info.get("width") if isinstance(size_info, dict) else None
+        height = size_info.get("height") if isinstance(size_info, dict) else None
+        
+        # Get file creation date
+        file_path = all_results["phases"]["1_intake"].get("filePath", "")
+        date_created = None
+        if file_path:
+            try:
+                import os
+                from datetime import datetime
+                stat = os.stat(file_path)
+                date_created = datetime.fromtimestamp(stat.st_ctime).isoformat()
+            except:
+                pass
+        
+        file_size = all_results["phases"]["1_intake"]["fileSize"]
+        file_size_mb = round(file_size / (1024 * 1024), 2) if file_size else 0
+        
+        # Get non-pixel data from structure and anomalies
+        structure = all_results["phases"]["3_structure"]
+        anomalies = all_results["phases"]["7_anomalies"]
+        non_pixel_bytes = structure.get("nonPixelBytes", 0)
+        non_pixel_ratio = anomalies.get("nonPixelRatio", 0)
+        
         report = {
             "summary": {
                 "fileName": all_results["phases"]["1_intake"]["fileName"],
-                "fileSize": all_results["phases"]["1_intake"]["fileSize"],
+                "fileSize": file_size,
+                "fileSizeBytes": f"{file_size:,} bytes" if file_size else "0 bytes",
+                "fileSizeMB": f"{file_size_mb} MB",
+                "nonPixelBytes": non_pixel_bytes,
+                "nonPixelRatio": round(non_pixel_ratio, 3) if non_pixel_ratio else 0,
                 "containerType": all_results["phases"]["2_container"]["containerType"],
+                "width": width,
+                "height": height,
+                "dimensions": f"{width} x {height}" if width and height else None,
+                "dateCreated": date_created,
                 "hasExif": len(all_results["phases"]["4_metadata"].get("exif", {})) > 0,
                 "hasPayloads": len(all_results["phases"]["5_payloads"].get("payloads", [])) > 0,
                 "hasAiMetadata": all_results["phases"]["6_ai_patterns"]["aiMetadata"]["tool"] is not None

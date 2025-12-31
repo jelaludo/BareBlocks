@@ -246,25 +246,28 @@ HTML_TEMPLATE = """
             width: 100%;
             font-size: 11px;
             table-layout: fixed;
+            border-spacing: 0;
         }
         
         .metadata-table th,
         .metadata-table td {
-            padding: 3px 8px;
+            padding: 3px 5px;
             text-align: left;
             border-bottom: 1px solid #30363d;
         }
         
         .metadata-table th:first-child,
         .metadata-table td:first-child {
-            width: 35%;
-            max-width: 200px;
+            width: 28%;
+            max-width: 160px;
+            padding-right: 3px;
         }
         
         .metadata-table th:last-child,
         .metadata-table td:last-child {
-            width: 65%;
+            width: 72%;
             word-break: break-word;
+            padding-left: 3px;
         }
         
         .metadata-table .expandable {
@@ -648,11 +651,27 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     if (value && typeof value === 'object' && !Array.isArray(value)) {
                         // For nested objects, show summary and expand on click
                         const itemCount = Object.keys(value).length;
-                        html += `<tr class="expandable" onclick="toggleRow(this)"><td>${escapeHtml(fullKey)}</td><td>[Object: ${itemCount} properties] <span class="toggle">+</span></td></tr>`;
-                        // Add nested rows (hidden by default)
-                        html += `<tr class="nested" style="display:none;"><td colspan="2"><div style="padding-left:20px;">`;
-                        addRows(value, fullKey, depth + 1);
-                        html += `</div></td></tr>`;
+                        html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(fullKey)}</td><td>[Object: ${itemCount} properties] <span class="toggle">+</span></td></tr>`;
+                        // Add nested rows (hidden by default) - use proper table structure
+                        html += `<tr class="nested" style="display:none;"><td colspan="2" style="padding-left:20px; padding-top:0; padding-bottom:0;">`;
+                        // Create nested table for proper structure
+                        html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:10px;">`;
+                        for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                            const nestedFullKey = `${fullKey}.${nestedKey}`;
+                            if (nestedValue && typeof nestedValue === 'object' && !Array.isArray(nestedValue) && depth < 1) {
+                                const nestedItemCount = Object.keys(nestedValue).length;
+                                html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(nestedKey)}</td><td>[Object: ${nestedItemCount} properties] <span class="toggle">+</span></td></tr>`;
+                                html += `<tr class="nested" style="display:none;"><td colspan="2" style="padding-left:15px;">`;
+                                html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:10px;">`;
+                                for (const [deepKey, deepValue] of Object.entries(nestedValue)) {
+                                    html += `<tr><td>${escapeHtml(deepKey)}</td><td>${escapeHtml(formatValue(deepValue))}</td></tr>`;
+                                }
+                                html += `</table></td></tr>`;
+                            } else {
+                                html += `<tr><td>${escapeHtml(nestedKey)}</td><td>${escapeHtml(formatValue(nestedValue))}</td></tr>`;
+                            }
+                        }
+                        html += `</table></td></tr>`;
                     } else {
                         html += `<tr><td>${escapeHtml(fullKey)}</td><td>${escapeHtml(formatValue(value))}</td></tr>`;
                     }
@@ -665,13 +684,37 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
         }
         
         function toggleRow(row) {
-            const nested = row.nextElementSibling;
+            // Find the next sibling row with class 'nested'
+            let nested = row.nextElementSibling;
+            
+            // If not found, try to find it in the parent table
+            if (!nested || !nested.classList.contains('nested')) {
+                const parentTable = row.closest('table');
+                if (parentTable) {
+                    const allRows = parentTable.querySelectorAll('tr');
+                    for (let i = 0; i < allRows.length; i++) {
+                        if (allRows[i] === row && i + 1 < allRows.length) {
+                            nested = allRows[i + 1];
+                            if (nested.classList.contains('nested')) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             if (nested && nested.classList.contains('nested')) {
-                nested.style.display = nested.style.display === 'none' ? 'table-row' : 'none';
+                const isHidden = nested.style.display === 'none' || !nested.style.display || window.getComputedStyle(nested).display === 'none';
+                nested.style.display = isHidden ? 'table-row' : 'none';
                 const toggle = row.querySelector('.toggle');
-                if (toggle) toggle.textContent = nested.style.display === 'none' ? '+' : '-';
+                if (toggle) toggle.textContent = isHidden ? '-' : '+';
+            } else {
+                console.log('Could not find nested row for:', row);
             }
         }
+        
+        // Make toggleRow globally accessible
+        window.toggleRow = toggleRow;
         
         function addJsonOutput(data) {
             const jsonStr = JSON.stringify(data, null, 2);
@@ -1061,7 +1104,14 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
         
         function processFile(file) {
             addCommand(`"${file.name}"`);
-            addOutput('Analyzing file...', 'info');
+            
+            // Add analyzing line with placeholder for "done"
+            const analyzingLine = document.createElement('div');
+            analyzingLine.className = 'terminal-line';
+            analyzingLine.id = 'analyzingLine';
+            analyzingLine.innerHTML = '<span class="info">Analyzing file...</span>';
+            terminal.appendChild(analyzingLine);
+            terminal.scrollTop = terminal.scrollHeight;
             
             const formData = new FormData();
             formData.append('file', file);
@@ -1072,6 +1122,12 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             })
             .then(response => response.json())
             .then(data => {
+                // Update analyzing line to show "done"
+                const analyzingEl = document.getElementById('analyzingLine');
+                if (analyzingEl) {
+                    analyzingEl.innerHTML = '<span class="info">Analyzing file...</span> <span class="success">done</span>';
+                }
+                
                 if (data.error) {
                     addOutput(`Error: ${data.error}`, 'error');
                 } else {
@@ -1085,7 +1141,55 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     // Display summary first
                     if (data.metadata && data.metadata.summary) {
                         addOutput('<span class="summary">Summary:</span>', 'output');
-                        addMetadataTable(data.metadata.summary, 'summary');
+                        // Format summary with enhanced fields
+                        const summary = data.metadata.summary;
+                        const formattedSummary = {};
+                        
+                        // Copy existing fields
+                        if (summary.fileName) formattedSummary.fileName = summary.fileName;
+                        if (summary.containerType) formattedSummary.containerType = summary.containerType;
+                        
+                        // Format file size
+                        if (summary.fileSize !== undefined) {
+                            formattedSummary['fileSize (bytes)'] = summary.fileSizeBytes || `${summary.fileSize.toLocaleString()} bytes`;
+                            if (summary.fileSizeMB) {
+                                formattedSummary['fileSize (MB)'] = summary.fileSizeMB;
+                            } else if (summary.fileSize) {
+                                const mb = (summary.fileSize / (1024 * 1024)).toFixed(2);
+                                formattedSummary['fileSize (MB)'] = `${mb} MB`;
+                            }
+                            
+                            // Add non-pixel data metrics
+                            if (summary.nonPixelBytes !== undefined) {
+                                formattedSummary['nonPixelBytes'] = summary.nonPixelBytes.toLocaleString();
+                            }
+                            if (summary.nonPixelRatio !== undefined && summary.nonPixelRatio !== null) {
+                                formattedSummary['nonPixelRatio'] = summary.nonPixelRatio;
+                            }
+                        }
+                        
+                        // Add dimensions
+                        if (summary.dimensions) {
+                            formattedSummary.Dimensions = summary.dimensions;
+                        }
+                        if (summary.width !== undefined && summary.width !== null) {
+                            formattedSummary.Width = summary.width;
+                        }
+                        if (summary.height !== undefined && summary.height !== null) {
+                            formattedSummary.Height = summary.height;
+                        }
+                        
+                        // Add date created
+                        if (summary.dateCreated) {
+                            formattedSummary['Date Created'] = new Date(summary.dateCreated).toLocaleString();
+                        }
+                        
+                        // Add boolean flags
+                        if (summary.hasExif !== undefined) formattedSummary.hasExif = summary.hasExif;
+                        if (summary.hasPayloads !== undefined) formattedSummary.hasPayloads = summary.hasPayloads;
+                        if (summary.hasAiMetadata !== undefined) formattedSummary.hasAiMetadata = summary.hasAiMetadata;
+                        
+                        addMetadataTable(formattedSummary, 'summary');
                     }
                     
                     // Display structure
