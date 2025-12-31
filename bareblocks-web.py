@@ -7,6 +7,7 @@ Runs on localhost with a terminal-like interface
 from flask import Flask, render_template_string, request, jsonify, send_from_directory
 import os
 import json
+import base64
 from pathlib import Path
 import sys
 
@@ -345,6 +346,103 @@ HTML_TEMPLATE = """
         .chunk-item-purpose {
             color: #D19A66;
             flex: 1;
+        }
+        
+        .chunk-item-type {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: rgba(111, 195, 223, 0.5);
+        }
+        
+        .chunk-item-type:hover {
+            color: #89D185;
+            text-decoration-color: #89D185;
+        }
+        
+        .chunk-modal {
+            position: fixed;
+            background: #0d1117;
+            border: 2px solid #6FC3DF;
+            border-radius: 6px;
+            padding: 15px;
+            max-width: 600px;
+            max-height: 70vh;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            font-size: 11px;
+            color: #c9d1d9;
+        }
+        
+        .chunk-modal-header {
+            color: #6FC3DF;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        .chunk-modal-content {
+            line-height: 1.6;
+        }
+        
+        .chunk-modal-section {
+            margin-bottom: 12px;
+        }
+        
+        .chunk-modal-section-title {
+            color: #89D185;
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+        
+        .chunk-modal-text {
+            color: #c9d1d9;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #161b22;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #30363d;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+        }
+        
+        .chunk-modal-hex {
+            color: #98C379;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            background: #161b22;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #30363d;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        
+        .chunk-modal-hex-line {
+            margin-bottom: 2px;
+        }
+        
+        .chunk-modal-hex-offset {
+            color: #8b949e;
+            margin-right: 8px;
+        }
+        
+        .chunk-modal-hex-bytes {
+            color: #6FC3DF;
+            margin-right: 8px;
+        }
+        
+        .chunk-modal-hex-ascii {
+            color: #D19A66;
+        }
+        
+        .chunk-modal-loading {
+            color: #8b949e;
+            font-style: italic;
         }
         
         .terminal-controls {
@@ -997,6 +1095,33 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     const type = document.createElement('div');
                     type.className = 'chunk-item-type';
                     type.textContent = chunk.type || 'UNKNOWN';
+                    type.dataset.chunkIndex = index;
+                    type.dataset.chunkType = chunk.type;
+                    type.dataset.chunkOffset = chunk.offset || 0;
+                    type.dataset.chunkSize = chunk.size || 0;
+                    
+                    // Add hover handler for modal
+                    let modal = null;
+                    let hoverTimeout = null;
+                    
+                    type.addEventListener('mouseenter', (e) => {
+                        hoverTimeout = setTimeout(() => {
+                            showChunkModal(chunk, index, e);
+                        }, 300); // Small delay to avoid accidental triggers
+                    });
+                    
+                    type.addEventListener('mouseleave', () => {
+                        if (hoverTimeout) {
+                            clearTimeout(hoverTimeout);
+                            hoverTimeout = null;
+                        }
+                        // Remove modal if it exists
+                        const existingModal = document.querySelector('.chunk-modal');
+                        if (existingModal) {
+                            existingModal.remove();
+                        }
+                    });
+                    
                     const size = document.createElement('div');
                     size.className = 'chunk-item-size';
                     size.textContent = formatBytes(chunk.size || 0);
@@ -1023,6 +1148,250 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             const sizes = ['B', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        function showChunkModal(chunk, index, event) {
+            // Remove any existing modal
+            const existingModal = document.querySelector('.chunk-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'chunk-modal';
+            modal.innerHTML = '<div class="chunk-modal-loading">Loading chunk content...</div>';
+            document.body.appendChild(modal);
+            
+            // Position modal near cursor
+            const rect = event.target.getBoundingClientRect();
+            modal.style.left = `${rect.right + 10}px`;
+            modal.style.top = `${rect.top}px`;
+            
+            // Adjust if modal goes off screen
+            setTimeout(() => {
+                const modalRect = modal.getBoundingClientRect();
+                if (modalRect.right > window.innerWidth) {
+                    modal.style.left = `${rect.left - modalRect.width - 10}px`;
+                }
+                if (modalRect.bottom > window.innerHeight) {
+                    modal.style.top = `${window.innerHeight - modalRect.height - 10}px`;
+                }
+            }, 0);
+            
+            // Store modal reference for cleanup
+            event.target._modal = modal;
+            
+            // Close modal when mouse leaves modal or type element
+            const closeModal = () => {
+                if (modal && modal.parentNode) {
+                    modal.remove();
+                    event.target._modal = null;
+                }
+            };
+            
+            modal.addEventListener('mouseleave', closeModal);
+            event.target.addEventListener('mouseleave', closeModal);
+            
+            // Load and display content based on chunk type
+            loadChunkContent(chunk, index, modal);
+        }
+        
+        function loadChunkContent(chunk, chunkIndex, modal) {
+            const chunkType = chunk.type;
+            
+            if (chunkType === 'IHDR') {
+                // Parse IHDR header
+                fetchChunkBytes(chunk.offset + 8, 13).then(bytes => {
+                    if (bytes && bytes.length >= 13) {
+                        const width = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                        const height = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
+                        const bitDepth = bytes[8];
+                        const colorType = bytes[9];
+                        const compression = bytes[10];
+                        const filter = bytes[11];
+                        const interlace = bytes[12];
+                        
+                        const colorTypes = {
+                            0: 'Grayscale',
+                            2: 'RGB',
+                            3: 'Palette',
+                            4: 'Grayscale with Alpha',
+                            6: 'RGB with Alpha'
+                        };
+                        
+                        modal.innerHTML = `
+                            <div class="chunk-modal-header">IHDR - Image Header</div>
+                            <div class="chunk-modal-content">
+                                <div class="chunk-modal-section">
+                                    <div class="chunk-modal-section-title">Dimensions</div>
+                                    <div class="chunk-modal-text">Width: ${width} px\nHeight: ${height} px</div>
+                                </div>
+                                <div class="chunk-modal-section">
+                                    <div class="chunk-modal-section-title">Color Settings</div>
+                                    <div class="chunk-modal-text">Bit Depth: ${bitDepth}\nColor Type: ${colorTypes[colorType] || 'Unknown'} (${colorType})\nCompression: ${compression === 0 ? 'Deflate' : 'Unknown'}\nFilter: ${filter === 0 ? 'Adaptive' : 'Unknown'}\nInterlace: ${interlace === 0 ? 'None' : 'Adam7'}</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        modal.innerHTML = '<div class="chunk-modal-header">IHDR</div><div class="chunk-modal-content">Could not parse header data</div>';
+                    }
+                }).catch(err => {
+                    modal.innerHTML = `<div class="chunk-modal-header">IHDR</div><div class="chunk-modal-content">Error loading header: ${err.message}</div>`;
+                });
+            } else if (['tEXt', 'zTXt', 'iTXt'].includes(chunkType)) {
+                // Get from payloads if available
+                const payloads = window.currentPayloads || [];
+                const payload = payloads.find(p => {
+                    const source = p.source || '';
+                    return source.includes(chunkType) && (p.keyword || '').length > 0;
+                });
+                
+                if (payload && payload.content) {
+                    let content = '';
+                    if (typeof payload.content === 'string') {
+                        content = payload.content;
+                    } else if (typeof payload.content === 'object') {
+                        content = JSON.stringify(payload.content, null, 2);
+                    }
+                    
+                    modal.innerHTML = `
+                        <div class="chunk-modal-header">${chunkType} - ${payload.keyword || 'Text Metadata'}</div>
+                        <div class="chunk-modal-content">
+                            <div class="chunk-modal-section">
+                                <div class="chunk-modal-section-title">Keyword</div>
+                                <div class="chunk-modal-text">${escapeHtml(payload.keyword || 'Unknown')}</div>
+                            </div>
+                            <div class="chunk-modal-section">
+                                <div class="chunk-modal-section-title">Content</div>
+                                <div class="chunk-modal-text">${escapeHtml(content)}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Fallback: try to fetch and parse
+                    fetchChunkBytes(chunk.offset + 8, Math.min(chunk.size, 1024)).then(bytes => {
+                        if (bytes) {
+                            const text = new TextDecoder('utf-8', {fatal: false}).decode(bytes);
+                            const nullIndex = text.indexOf('\0');
+                            if (nullIndex > 0) {
+                                const keyword = text.substring(0, nullIndex);
+                                const value = text.substring(nullIndex + 1);
+                                modal.innerHTML = `
+                                    <div class="chunk-modal-header">${chunkType} - ${keyword}</div>
+                                    <div class="chunk-modal-content">
+                                        <div class="chunk-modal-section">
+                                            <div class="chunk-modal-section-title">Keyword</div>
+                                            <div class="chunk-modal-text">${escapeHtml(keyword)}</div>
+                                        </div>
+                                        <div class="chunk-modal-section">
+                                            <div class="chunk-modal-section-title">Value</div>
+                                            <div class="chunk-modal-text">${escapeHtml(value)}</div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                modal.innerHTML = `<div class="chunk-modal-header">${chunkType}</div><div class="chunk-modal-content"><div class="chunk-modal-text">${escapeHtml(text)}</div></div>`;
+                            }
+                        }
+                    }).catch(err => {
+                        modal.innerHTML = `<div class="chunk-modal-header">${chunkType}</div><div class="chunk-modal-content">Error loading content: ${err.message}</div>`;
+                    });
+                }
+            } else if (chunkType === 'IDAT') {
+                // Show hex dump of first 64 bytes
+                fetchChunkBytes(chunk.offset + 8, 64).then(bytes => {
+                    if (bytes) {
+                        const hexDump = formatHexDump(bytes, chunk.offset + 8);
+                        modal.innerHTML = `
+                            <div class="chunk-modal-header">IDAT - Image Data (Pixel)</div>
+                            <div class="chunk-modal-content">
+                                <div class="chunk-modal-section">
+                                    <div class="chunk-modal-section-title">First 64 bytes (of ${chunk.size.toLocaleString()})</div>
+                                    <div class="chunk-modal-hex">${hexDump}</div>
+                                </div>
+                                <div class="chunk-modal-section">
+                                    <div style="color: #8b949e; font-size: 10px; margin-top: 8px;">Note: This is compressed PNG image data. The actual pixel data requires decompression.</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        modal.innerHTML = `<div class="chunk-modal-header">IDAT</div><div class="chunk-modal-content">Could not load chunk data</div>`;
+                    }
+                }).catch(err => {
+                    modal.innerHTML = `<div class="chunk-modal-header">IDAT</div><div class="chunk-modal-content">Error loading data: ${err.message}</div>`;
+                });
+            } else {
+                // Generic chunk - show hex dump
+                fetchChunkBytes(chunk.offset + 8, Math.min(chunk.size, 128)).then(bytes => {
+                    if (bytes) {
+                        const hexDump = formatHexDump(bytes, chunk.offset + 8);
+                        modal.innerHTML = `
+                            <div class="chunk-modal-header">${chunkType}</div>
+                            <div class="chunk-modal-content">
+                                <div class="chunk-modal-section">
+                                    <div class="chunk-modal-section-title">First ${bytes.length} bytes (of ${chunk.size.toLocaleString()})</div>
+                                    <div class="chunk-modal-hex">${hexDump}</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        modal.innerHTML = `<div class="chunk-modal-header">${chunkType}</div><div class="chunk-modal-content">Could not load chunk data</div>`;
+                    }
+                }).catch(err => {
+                    modal.innerHTML = `<div class="chunk-modal-header">${chunkType}</div><div class="chunk-modal-content">Error loading data: ${err.message}</div>`;
+                });
+            }
+        }
+        
+        function fetchChunkBytes(offset, length) {
+            // Get file path from stored data
+            const filePath = window.currentFilePath;
+            if (!filePath) {
+                return Promise.reject(new Error('File path not available'));
+            }
+            
+            return fetch('/chunk-content', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    file_path: filePath,
+                    offset: offset,
+                    length: length
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                // Decode base64
+                const binaryString = atob(data.data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes;
+            });
+        }
+        
+        function formatHexDump(bytes, startOffset) {
+            let output = '';
+            const bytesPerLine = 16;
+            for (let i = 0; i < bytes.length; i += bytesPerLine) {
+                const offset = startOffset + i;
+                const lineBytes = bytes.slice(i, i + bytesPerLine);
+                const hex = Array.from(lineBytes).map(b => {
+                    const hex = b.toString(16).padStart(2, '0');
+                    return hex;
+                }).join(' ');
+                const ascii = Array.from(lineBytes).map(b => {
+                    return (b >= 32 && b < 127) ? String.fromCharCode(b) : '.';
+                }).join('');
+                output += `<div class="chunk-modal-hex-line"><span class="chunk-modal-hex-offset">${offset.toString(16).padStart(8, '0')}:</span><span class="chunk-modal-hex-bytes">${hex.padEnd(48)}</span><span class="chunk-modal-hex-ascii">${ascii}</span></div>`;
+            }
+            return output;
         }
         
         function addLine(content, className = '') {
@@ -1725,6 +2094,14 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     
                     terminal.scrollTop = terminal.scrollHeight;
                     
+                    // Store payloads and file path for chunk modal access
+                    if (data.metadata && data.metadata.payloads) {
+                        window.currentPayloads = data.metadata.payloads.payloads || [];
+                    }
+                    if (data.file_path) {
+                        window.currentFilePath = data.file_path;
+                    }
+                    
                     // Update chunks visualization if chunks data exists
                     if (data.metadata && data.metadata.structure) {
                         console.log('Structure data:', data.metadata.structure);
@@ -1847,9 +2224,15 @@ def analyze():
             
             serializable_report = make_serializable(final_report)
             
-            # Clean up
+            # Store file path temporarily for chunk content access
+            # We'll keep the file until the session ends or a new file is uploaded
+            session_file_path = str(file_path)
+            
+            # Clean up old files (keep only the most recent)
             try:
-                file_path.unlink()
+                for old_file in upload_dir.glob('*'):
+                    if old_file != file_path:
+                        old_file.unlink()
             except:
                 pass
             
@@ -1867,7 +2250,8 @@ def analyze():
                     '7_anomalies': make_serializable(results["phases"]["7_anomalies"]),
                     '8_report': make_serializable(results["phases"]["8_report"])
                 },
-                'json': request.form.get('format') == 'json'
+                'json': request.form.get('format') == 'json',
+                'file_path': session_file_path  # Return file path for chunk content access
             })
             
         except Exception as e:
@@ -1893,6 +2277,34 @@ def analyze():
             
             return jsonify({'error': f'Inspection failed: {str(e)}'}), 500
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/chunk-content', methods=['POST'])
+def chunk_content():
+    """Fetch chunk content from file"""
+    try:
+        data = request.json
+        file_path = data.get('file_path')
+        offset = int(data.get('offset', 0))
+        length = int(data.get('length', 64))
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Limit length to prevent abuse
+        length = min(length, 1024)
+        
+        with open(file_path, 'rb') as f:
+            f.seek(offset)
+            bytes_data = f.read(length)
+        
+        # Convert to base64 for JSON transport
+        return jsonify({
+            'success': True,
+            'data': base64.b64encode(bytes_data).decode('utf-8'),
+            'length': len(bytes_data)
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
