@@ -151,6 +151,202 @@ HTML_TEMPLATE = """
             font-weight: bold;
         }
         
+        .chunks-content {
+            display: none;
+            padding: 15px 20px;
+            font-size: 11px;
+            color: #c9d1d9;
+            overflow-y: auto;
+            height: calc(100vh - 120px);
+        }
+        
+        .chunks-content.active {
+            display: block;
+        }
+        
+        .chunks-header {
+            margin-bottom: 20px;
+        }
+        
+        .chunks-header h2 {
+            color: #89D185;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .chunks-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: #8b949e;
+        }
+        
+        .chunks-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .chunks-stat-value {
+            color: #6FC3DF;
+            font-weight: bold;
+        }
+        
+        .heatmap-container {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .heatmap-title {
+            color: #6FC3DF;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .heatmap-bar {
+            width: 100%;
+            height: 40px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .heatmap-segment {
+            position: absolute;
+            height: 100%;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: bold;
+        }
+        
+        .heatmap-segment:hover {
+            opacity: 0.8;
+            transform: scaleY(1.1);
+            z-index: 10;
+        }
+        
+        .heatmap-segment.tooltip-active {
+            opacity: 0.9;
+            z-index: 20;
+        }
+        
+        .chunk-tooltip {
+            position: absolute;
+            background: #0d1117;
+            border: 1px solid #6FC3DF;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 10px;
+            color: #c9d1d9;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            max-width: 300px;
+        }
+        
+        .chunk-tooltip-title {
+            color: #6FC3DF;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .chunk-tooltip-detail {
+            color: #8b949e;
+            margin: 2px 0;
+        }
+        
+        .chunks-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #30363d;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+            border: 1px solid #30363d;
+        }
+        
+        .chunks-list {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        
+        .chunks-list-title {
+            color: #6FC3DF;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .chunk-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-bottom: 1px solid #30363d;
+            font-size: 10px;
+        }
+        
+        .chunk-item:last-child {
+            border-bottom: none;
+        }
+        
+        .chunk-item-number {
+            color: #8b949e;
+            font-weight: normal;
+            min-width: 35px;
+            text-align: right;
+        }
+        
+        .chunk-item-type {
+            color: #6FC3DF;
+            font-weight: bold;
+            min-width: 60px;
+        }
+        
+        .chunk-item-size {
+            color: #98C379;
+            min-width: 80px;
+        }
+        
+        .chunk-item-offset {
+            color: #8b949e;
+            min-width: 100px;
+        }
+        
+        .chunk-item-purpose {
+            color: #D19A66;
+            flex: 1;
+        }
+        
         .terminal-controls {
             display: flex;
             gap: 8px;
@@ -514,6 +710,7 @@ HTML_TEMPLATE = """
                 <div class="terminal-tabs">
                     <button class="tab-button active" id="mainTab" onclick="switchTab('main')">Terminal</button>
                     <button class="tab-button" id="flowTab" onclick="switchTab('flow')">Parsing Flow</button>
+                    <button class="tab-button" id="chunksTab" onclick="switchTab('chunks')">Chunks</button>
                 </div>
             </div>
             <div class="terminal-controls">
@@ -587,6 +784,27 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             </div>
         </div>
         
+        <div class="chunks-content" id="chunksContent">
+            <div class="chunks-header">
+                <h2>File Structure Heatmap</h2>
+                <div class="chunks-stats" id="chunksStats">
+                    <div class="chunks-stat"><span>Total Chunks:</span><span class="chunks-stat-value" id="totalChunks">-</span></div>
+                    <div class="chunks-stat"><span>File Size:</span><span class="chunks-stat-value" id="fileSize">-</span></div>
+                    <div class="chunks-stat"><span>Pixel Data:</span><span class="chunks-stat-value" id="pixelData">-</span></div>
+                    <div class="chunks-stat"><span>Non-Pixel Data:</span><span class="chunks-stat-value" id="nonPixelData">-</span></div>
+                </div>
+            </div>
+            <div class="heatmap-container">
+                <div class="heatmap-title">File Layout (proportional)</div>
+                <div class="heatmap-bar" id="heatmapBar"></div>
+                <div class="chunks-legend" id="chunksLegend"></div>
+            </div>
+            <div class="chunks-list">
+                <div class="chunks-list-title">Chunk Details</div>
+                <div id="chunksList"></div>
+            </div>
+        </div>
+        
         <div class="input-area">
             <span class="input-prompt">$</span>
             <input type="file" id="fileInput" class="file-input" accept="image/*,video/*,audio/*,.pdf,.docx">
@@ -601,26 +819,211 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
         const fileInput = document.getElementById('fileInput');
         const uploadArea = document.getElementById('uploadArea');
         const parsingFlow = document.getElementById('parsingFlow');
+        const chunksContent = document.getElementById('chunksContent');
         
         function switchTab(tab) {
             const mainTab = document.getElementById('mainTab');
             const flowTab = document.getElementById('flowTab');
+            const chunksTab = document.getElementById('chunksTab');
+            
+            // Reset all tabs
+            terminal.style.display = 'none';
+            parsingFlow.classList.remove('active');
+            chunksContent.classList.remove('active');
+            mainTab.classList.remove('active');
+            flowTab.classList.remove('active');
+            chunksTab.classList.remove('active');
             
             if (tab === 'main') {
                 terminal.style.display = 'flex';
-                parsingFlow.classList.remove('active');
                 mainTab.classList.add('active');
-                flowTab.classList.remove('active');
-            } else {
-                terminal.style.display = 'none';
+            } else if (tab === 'flow') {
                 parsingFlow.classList.add('active');
-                mainTab.classList.remove('active');
                 flowTab.classList.add('active');
+            } else if (tab === 'chunks') {
+                chunksContent.classList.add('active');
+                chunksTab.classList.add('active');
             }
         }
         
         // Make switchTab globally accessible
         window.switchTab = switchTab;
+        
+        // Chunk color mapping (Rich pastel palette)
+        const chunkColors = {
+            'IHDR': '#6FC3DF',  // Header - cyan
+            'PLTE': '#B294BB',  // Palette - purple
+            'IDAT': '#98C379',  // Image data - green
+            'IEND': '#E06C75',  // End - red
+            'tEXt': '#D19A66',  // Text - orange
+            'zTXt': '#56B6C2',  // Compressed text - cyan
+            'iTXt': '#C678DD',  // International text - magenta
+            'tIME': '#E5C07B',  // Time - yellow
+            'pHYs': '#9CDCFE',  // Physical - light blue
+            'gAMA': '#61AFEF',  // Gamma - blue
+            'cHRM': '#89D185',  // Chromaticity - green
+            'DEFAULT': '#8b949e' // Default - gray
+        };
+        
+        const chunkPurposes = {
+            'IHDR': 'Image Header',
+            'PLTE': 'Color Palette',
+            'IDAT': 'Image Data (Pixel)',
+            'IEND': 'Image End Marker',
+            'tEXt': 'Text Metadata',
+            'zTXt': 'Compressed Text',
+            'iTXt': 'International Text',
+            'tIME': 'Last Modified Time',
+            'pHYs': 'Pixel Dimensions',
+            'gAMA': 'Gamma Correction',
+            'cHRM': 'Chromaticity',
+            'DEFAULT': 'Data Chunk'
+        };
+        
+        function updateChunksVisualization(structure) {
+            const chunks = structure.chunks || [];
+            if (chunks.length === 0) {
+                console.log('No chunks to visualize');
+                return;
+            }
+            
+            console.log('Updating chunks visualization with', chunks.length, 'chunks');
+            
+            // Update stats
+            const totalChunks = chunks.length;
+            const fileSize = (structure.pixelDataBytes || 0) + (structure.nonPixelBytes || 0);
+            const pixelData = structure.pixelDataBytes || 0;
+            const nonPixelData = structure.nonPixelBytes || 0;
+            
+            document.getElementById('totalChunks').textContent = totalChunks;
+            document.getElementById('fileSize').textContent = formatBytes(fileSize);
+            document.getElementById('pixelData').textContent = formatBytes(pixelData);
+            document.getElementById('nonPixelData').textContent = formatBytes(nonPixelData);
+            
+            // Calculate total size for proportional display
+            let totalSize = 0;
+            chunks.forEach(chunk => {
+                totalSize += (chunk.size || 0) + 12; // size + 4 (length) + 4 (type) + 4 (CRC)
+            });
+            totalSize += 8; // PNG signature
+            
+            // Create heatmap
+            const heatmapBar = document.getElementById('heatmapBar');
+            if (!heatmapBar) {
+                console.error('Heatmap bar element not found');
+                return;
+            }
+            heatmapBar.innerHTML = '';
+            
+            let currentOffset = 0;
+            const barWidth = heatmapBar.offsetWidth || 800; // Fallback width
+            
+            chunks.forEach((chunk, index) => {
+                const chunkType = chunk.type || 'UNKNOWN';
+                const chunkSize = (chunk.size || 0) + 12; // Include overhead
+                const percentage = (chunkSize / totalSize) * 100;
+                const width = (percentage / 100) * barWidth;
+                
+                if (width < 1) return; // Skip chunks too small to display
+                
+                const segment = document.createElement('div');
+                segment.className = 'heatmap-segment';
+                segment.style.left = `${(currentOffset / totalSize) * 100}%`;
+                segment.style.width = `${percentage}%`;
+                segment.style.background = chunkColors[chunkType] || chunkColors.DEFAULT;
+                segment.textContent = chunkType;
+                segment.title = `${chunkType}: ${formatBytes(chunk.size || 0)} at offset ${chunk.offset || 0}`;
+                
+                // Tooltip on hover
+                let tooltip = null;
+                segment.addEventListener('mouseenter', (e) => {
+                    tooltip = document.createElement('div');
+                    tooltip.className = 'chunk-tooltip';
+                    tooltip.innerHTML = `
+                        <div class="chunk-tooltip-title">${chunkType}</div>
+                        <div class="chunk-tooltip-detail">Size: ${formatBytes(chunk.size || 0)}</div>
+                        <div class="chunk-tooltip-detail">Offset: ${(chunk.offset || 0).toLocaleString()}</div>
+                        <div class="chunk-tooltip-detail">Purpose: ${chunkPurposes[chunkType] || chunkPurposes.DEFAULT}</div>
+                    `;
+                    document.body.appendChild(tooltip);
+                    segment.classList.add('tooltip-active');
+                    
+                    const rect = segment.getBoundingClientRect();
+                    tooltip.style.left = `${rect.left + rect.width / 2 - 150}px`;
+                    tooltip.style.top = `${rect.bottom + 5}px`;
+                });
+                
+                segment.addEventListener('mouseleave', () => {
+                    if (tooltip) {
+                        tooltip.remove();
+                        tooltip = null;
+                    }
+                    segment.classList.remove('tooltip-active');
+                });
+                
+                heatmapBar.appendChild(segment);
+                currentOffset += chunkSize;
+            });
+            
+            // Create legend
+            const legend = document.getElementById('chunksLegend');
+            if (legend) {
+                legend.innerHTML = '';
+                const uniqueTypes = [...new Set(chunks.map(c => c.type))];
+                uniqueTypes.forEach(type => {
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+                    const colorBox = document.createElement('div');
+                    colorBox.className = 'legend-color';
+                    colorBox.style.background = chunkColors[type] || chunkColors.DEFAULT;
+                    item.appendChild(colorBox);
+                    const label = document.createElement('span');
+                    label.textContent = `${type} (${chunkPurposes[type] || chunkPurposes.DEFAULT})`;
+                    item.appendChild(label);
+                    legend.appendChild(item);
+                });
+            }
+            
+            // Create chunks list
+            const chunksList = document.getElementById('chunksList');
+            if (chunksList) {
+                chunksList.innerHTML = '';
+                chunks.forEach((chunk, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'chunk-item';
+                    const number = document.createElement('div');
+                    number.className = 'chunk-item-number';
+                    number.textContent = `${index + 1}.`;
+                    const type = document.createElement('div');
+                    type.className = 'chunk-item-type';
+                    type.textContent = chunk.type || 'UNKNOWN';
+                    const size = document.createElement('div');
+                    size.className = 'chunk-item-size';
+                    size.textContent = formatBytes(chunk.size || 0);
+                    const offset = document.createElement('div');
+                    offset.className = 'chunk-item-offset';
+                    offset.textContent = `@ ${(chunk.offset || 0).toLocaleString()}`;
+                    const purpose = document.createElement('div');
+                    purpose.className = 'chunk-item-purpose';
+                    purpose.textContent = chunkPurposes[chunk.type] || chunkPurposes.DEFAULT;
+                    
+                    item.appendChild(number);
+                    item.appendChild(type);
+                    item.appendChild(size);
+                    item.appendChild(offset);
+                    item.appendChild(purpose);
+                    chunksList.appendChild(item);
+                });
+            }
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
         
         function addLine(content, className = '') {
             const line = document.createElement('div');
@@ -1222,7 +1625,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         
                         // Format file size
                         if (summary.fileSize !== undefined) {
-                            formattedSummary['fileSize (bytes)'] = summary.fileSizeBytes || `${summary.fileSize.toLocaleString()} bytes`;
+                            formattedSummary['fileSize (b)'] = summary.fileSizeBytes || `${summary.fileSize.toLocaleString()} bytes`;
                             if (summary.fileSizeMB) {
                                 formattedSummary['fileSize (MB)'] = summary.fileSizeMB;
                             } else if (summary.fileSize) {
@@ -1232,7 +1635,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                             
                             // Add non-pixel data metrics
                             if (summary.nonPixelBytes !== undefined) {
-                                formattedSummary['nonPixelBytes'] = summary.nonPixelBytes.toLocaleString();
+                                formattedSummary['nonPixelBytes'] = `${summary.nonPixelBytes.toLocaleString()} bytes`;
                             }
                             if (summary.nonPixelRatio !== undefined && summary.nonPixelRatio !== null) {
                                 formattedSummary['nonPixelRatio'] = summary.nonPixelRatio;
@@ -1321,6 +1724,19 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     }
                     
                     terminal.scrollTop = terminal.scrollHeight;
+                    
+                    // Update chunks visualization if chunks data exists
+                    if (data.metadata && data.metadata.structure) {
+                        console.log('Structure data:', data.metadata.structure);
+                        if (data.metadata.structure.chunks && Array.isArray(data.metadata.structure.chunks) && data.metadata.structure.chunks.length > 0) {
+                            console.log('Found chunks:', data.metadata.structure.chunks.length);
+                            updateChunksVisualization(data.metadata.structure);
+                        } else {
+                            console.log('No chunks found in structure');
+                        }
+                    } else {
+                        console.log('No structure data in metadata');
+                    }
                     
                     // Full metadata table as fallback
                     if (data.metadata) {
