@@ -751,7 +751,7 @@ class LayeredInspector:
         return round(entropy, 2)
     
     def _extract_gps_from_pil(self, img: Image.Image) -> Optional[Dict]:
-        """Extract GPS coordinates from PIL image"""
+        """Extract GPS coordinates from PIL image and convert to decimal degrees"""
         try:
             exif = img._getexif()
             if not exif:
@@ -761,16 +761,62 @@ class LayeredInspector:
             if not gps_ifd:
                 return None
             
-            gps_data = {}
-            for tag, value in gps_ifd.items():
-                tag_name = GPSTAGS.get(tag, tag)
-                gps_data[tag_name] = str(value)
+            # Extract GPS values
+            gps_lat = gps_ifd.get(2)  # GPSLatitude
+            gps_lat_ref = gps_ifd.get(1)  # GPSLatitudeRef
+            gps_lon = gps_ifd.get(4)  # GPSLongitude
+            gps_lon_ref = gps_ifd.get(3)  # GPSLongitudeRef
             
-            # Convert to decimal degrees if we have lat/lon
-            if 'GPSLatitude' in gps_data and 'GPSLongitude' in gps_data:
-                return gps_data
+            if not all([gps_lat, gps_lat_ref, gps_lon, gps_lon_ref]):
+                return None
             
-            return None
-        except:
+            # Convert DMS to decimal degrees
+            def convert_to_degrees(dms_tuple):
+                """Convert (degrees, minutes, seconds) tuple to decimal degrees"""
+                # Handle Rational objects (num/den) or plain floats
+                def to_float(val):
+                    if hasattr(val, 'num') and hasattr(val, 'den'):
+                        return float(val.num) / float(val.den)
+                    return float(val)
+                
+                degrees = to_float(dms_tuple[0])
+                minutes = to_float(dms_tuple[1]) / 60.0
+                seconds = to_float(dms_tuple[2]) / 3600.0
+                return degrees + minutes + seconds
+            
+            latitude = convert_to_degrees(gps_lat)
+            longitude = convert_to_degrees(gps_lon)
+            
+            # Apply sign based on reference
+            if gps_lat_ref == 'S':
+                latitude = -latitude
+            if gps_lon_ref == 'W':
+                longitude = -longitude
+            
+            # Format as Google Maps readable string (latitude, longitude)
+            gps_string = f"{latitude:.6f}, {longitude:.6f}"
+            
+            gps_data = {
+                'GPSLatitude': gps_lat,
+                'GPSLatitudeRef': gps_lat_ref,
+                'GPSLongitude': gps_lon,
+                'GPSLongitudeRef': gps_lon_ref,
+                'latitude': latitude,
+                'longitude': longitude,
+                'formatted': gps_string  # Google Maps format: "lat, lon"
+            }
+            
+            # Add altitude if available
+            if 6 in gps_ifd:  # GPSAltitude
+                alt = gps_ifd[6]
+                if isinstance(alt, tuple) and len(alt) == 2:
+                    gps_data['altitude'] = float(alt[0]) / float(alt[1])
+                else:
+                    gps_data['altitude'] = float(alt)
+            
+            return gps_data
+        except Exception as e:
+            if self.verbose:
+                self.console.print(f"[yellow][!][/yellow] GPS extraction error: {e}")
             return None
 

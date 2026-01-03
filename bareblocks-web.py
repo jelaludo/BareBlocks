@@ -701,6 +701,120 @@ HTML_TEMPLATE = """
             color: #6e7681;
         }
         
+        .copy-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            vertical-align: middle;
+            position: relative;
+        }
+        
+        .copy-icon:hover {
+            opacity: 1;
+        }
+        
+        .copy-icon::before,
+        .copy-icon::after {
+            content: '';
+            position: absolute;
+            border: 1.5px solid #6FC3DF;
+            background: transparent;
+        }
+        
+        .copy-icon::before {
+            width: 10px;
+            height: 10px;
+            top: 2px;
+            left: 2px;
+        }
+        
+        .copy-icon::after {
+            width: 10px;
+            height: 10px;
+            top: 4px;
+            left: 4px;
+            border-color: #8b949e;
+        }
+        
+        .copy-icon:hover::before,
+        .copy-icon:hover::after {
+            border-color: #6FC3DF;
+        }
+        
+        .copy-icon.copied::before,
+        .copy-icon.copied::after {
+            display: none;
+        }
+        
+        .copy-icon.copied::before {
+            content: '✓';
+            display: block;
+            border: none;
+            color: #98C379;
+            font-size: 14px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .provenance-summary {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        
+        .provenance-summary-title {
+            color: #89D185;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        
+        .provenance-line {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .provenance-label {
+            color: #8b949e;
+            min-width: 80px;
+            font-weight: bold;
+        }
+        
+        .provenance-value {
+            color: #6FC3DF;
+            flex: 1;
+        }
+        
+        .provenance-gps {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .geo-data-clickable {
+            cursor: pointer;
+            color: #6FC3DF;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+        }
+        
+        .geo-data-clickable:hover {
+            color: #89D185;
+        }
+        
         .input-area {
             display: flex;
             align-items: center;
@@ -913,11 +1027,8 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
     </div>
     
     <script>
-        const terminal = document.getElementById('terminal');
-        const fileInput = document.getElementById('fileInput');
-        const uploadArea = document.getElementById('uploadArea');
-        const parsingFlow = document.getElementById('parsingFlow');
-        const chunksContent = document.getElementById('chunksContent');
+        // Global variables - will be initialized after DOM loads
+        let terminal, fileInput, uploadArea, parsingFlow, chunksContent;
         
         function switchTab(tab) {
             const mainTab = document.getElementById('mainTab');
@@ -1457,6 +1568,14 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 for (const [key, value] of Object.entries(obj)) {
                     const fullKey = prefix ? `${prefix}.${key}` : key;
                     if (value && typeof value === 'object' && !Array.isArray(value)) {
+                        // Check if this is GPS data with formatted coordinates
+                        if (key === 'gps' && value.formatted) {
+                            const gpsCoords = value.formatted;
+                            const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(gpsCoords)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(gpsCoords)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                            continue;
+                        }
+                        
                         // For nested objects, show summary and expand on click
                         const itemCount = Object.keys(value).length;
                         html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(fullKey)}</td><td>[Object: ${itemCount} properties] <span class="toggle">+</span></td></tr>`;
@@ -1466,13 +1585,27 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:10px;">`;
                         for (const [nestedKey, nestedValue] of Object.entries(value)) {
                             const nestedFullKey = `${fullKey}.${nestedKey}`;
+                            
+                            // Check if nested value is GPS formatted coordinates
+                            if (nestedKey === 'formatted' && typeof nestedValue === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(nestedValue)) {
+                                const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                html += `<tr><td>${escapeHtml(nestedKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(nestedValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(nestedValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                                continue;
+                            }
+                            
                             if (nestedValue && typeof nestedValue === 'object' && !Array.isArray(nestedValue) && depth < 1) {
                                 const nestedItemCount = Object.keys(nestedValue).length;
                                 html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(nestedKey)}</td><td>[Object: ${nestedItemCount} properties] <span class="toggle">+</span></td></tr>`;
                                 html += `<tr class="nested" style="display:none;"><td colspan="2" style="padding-left:15px;">`;
                                 html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:10px;">`;
                                 for (const [deepKey, deepValue] of Object.entries(nestedValue)) {
-                                    html += `<tr><td>${escapeHtml(deepKey)}</td><td>${escapeHtml(formatValue(deepValue))}</td></tr>`;
+                                    // Check for GPS formatted coordinates in deep nesting
+                                    if (deepKey === 'formatted' && typeof deepValue === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(deepValue)) {
+                                        const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                        html += `<tr><td>${escapeHtml(deepKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(deepValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(deepValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                                    } else {
+                                        html += `<tr><td>${escapeHtml(deepKey)}</td><td>${escapeHtml(formatValue(deepValue))}</td></tr>`;
+                                    }
                                 }
                                 html += `</table></td></tr>`;
                             } else {
@@ -1481,7 +1614,13 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         }
                         html += `</table></td></tr>`;
                     } else {
-                        html += `<tr><td>${escapeHtml(fullKey)}</td><td>${escapeHtml(formatValue(value))}</td></tr>`;
+                        // Check if this is a GPS formatted coordinate string
+                        if (typeof value === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(value) && (key.toLowerCase().includes('gps') || key.toLowerCase().includes('coordinate') || key.toLowerCase() === 'formatted')) {
+                            const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(value)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(value)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                        } else {
+                            html += `<tr><td>${escapeHtml(fullKey)}</td><td>${escapeHtml(formatValue(value))}</td></tr>`;
+                        }
                     }
                 }
             }
@@ -1529,6 +1668,52 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
         // Make toggleRow globally accessible
         window.toggleRow = toggleRow;
         
+        function copyGPSCoords(coords, iconElement) {
+            // Copy coordinates to clipboard
+            navigator.clipboard.writeText(coords).then(() => {
+                // Visual feedback: change icon to checkmark
+                iconElement.classList.add('copied');
+                setTimeout(() => {
+                    iconElement.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = coords;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    iconElement.classList.add('copied');
+                    setTimeout(() => {
+                        iconElement.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+                document.body.removeChild(textArea);
+            });
+        }
+        
+        // Make copyGPSCoords globally accessible
+        window.copyGPSCoords = copyGPSCoords;
+        
+        function copyGPSFromClick(coords, elementId) {
+            const icon = document.getElementById(elementId);
+            if (icon) {
+                copyGPSCoords(coords, icon);
+            } else {
+                // Create a temporary icon element for feedback
+                const tempIcon = document.createElement('span');
+                tempIcon.className = 'copy-icon';
+                copyGPSCoords(coords, tempIcon);
+            }
+        }
+        
+        window.copyGPSFromClick = copyGPSFromClick;
+        
         function addJsonOutput(data) {
             const jsonStr = JSON.stringify(data, null, 2);
             const formatted = jsonStr
@@ -1546,6 +1731,240 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             return div.innerHTML;
         }
         
+        function determineProvenance(metadata) {
+            const exif = metadata.metadata?.exif || {};
+            const aiMeta = metadata.aiMetadata?.aiMetadata || {};
+            const payloads = metadata.payloads?.payloads || [];
+            const exifKeys = Object.keys(exif);
+            
+            const hasKey = (substr) => exifKeys.some(k => k.toLowerCase().includes(substr.toLowerCase()));
+            
+            // Check for camera indicators
+            const hasCamera = hasKey('make') || hasKey('model') || hasKey('camera') || 
+                             exif['Image Make'] || exif['Image Model'] || exif['EXIF LensModel'];
+            
+            // Check for AI indicators
+            const hasAI = aiMeta.tool === 'ComfyUI' || 
+                         payloads.some(p => {
+                             const content = typeof p.content === 'string' ? p.content.toLowerCase() : 
+                                           typeof p.content === 'object' ? JSON.stringify(p.content).toLowerCase() : '';
+                             return p.classification === 'json' && (content.includes('comfy') || content.includes('workflow') || content.includes('nodes'));
+                         });
+            
+            if (hasCamera && !hasAI) {
+                return 'camera';
+            } else if (hasAI && !hasCamera) {
+                return 'ai';
+            } else if (hasCamera && hasAI) {
+                // Both present - check which is more prominent
+                return 'unclear';
+            } else {
+                return 'unclear';
+            }
+        }
+        
+        function addProvenanceSummary(metadata) {
+            const provenance = determineProvenance(metadata);
+            const exif = metadata.metadata?.exif || {};
+            const gps = metadata.metadata?.gps || {};
+            const aiMeta = metadata.aiMetadata?.aiMetadata || {};
+            const payloads = metadata.payloads?.payloads || [];
+            const summary = metadata.summary || {};
+            
+            let summaryHtml = '<div class="provenance-summary">';
+            
+            if (provenance === 'camera') {
+                summaryHtml += '<div class="provenance-summary-title">This image has metadata indicating it was taken by a camera.</div>';
+                
+                // Extract camera info
+                const make = String(exif['Image Make'] || '').trim();
+                const model = String(exif['Image Model'] || '').trim();
+                const lensModel = String(exif['EXIF LensModel'] || '').trim();
+                const focalLength = exif['EXIF FocalLength'];
+                const fNumber = exif['EXIF FNumber'];
+                
+                // Calculate focal length and f-number
+                let focalStr = '';
+                let fstopStr = '';
+                if (focalLength && fNumber) {
+                    const focal = typeof focalLength === 'object' && focalLength.values ? 
+                                 (focalLength.values[0].num / focalLength.values[0].den).toFixed(2) :
+                                 parseFloat(focalLength).toFixed(2);
+                    const fstop = typeof fNumber === 'object' && fNumber.values ? 
+                                 (fNumber.values[0].num / fNumber.values[0].den).toFixed(1) :
+                                 parseFloat(fNumber).toFixed(1);
+                    focalStr = `${focal}mm`;
+                    fstopStr = `f/${fstop}`;
+                }
+                
+                let cameraStr = '';
+                
+                // Strategy: If lensModel contains model name and focal info, use lensModel as base
+                // Otherwise, build from components
+                if (lensModel) {
+                    const lensLower = lensModel.toLowerCase();
+                    const modelInLens = model && lensLower.includes(model.toLowerCase());
+                    const hasFocalInLens = focalStr && lensLower.includes(focalStr.toLowerCase());
+                    const hasFstopInLens = fstopStr && lensLower.includes(fstopStr.toLowerCase());
+                    
+                    // If lensModel contains model + focal info, it's the most complete
+                    if (modelInLens && hasFocalInLens && hasFstopInLens) {
+                        // Use lensModel, but prepend make if it's not already there
+                        if (make && !lensLower.includes(make.toLowerCase())) {
+                            cameraStr = `${make} ${lensModel}`;
+                        } else {
+                            cameraStr = lensModel;
+                        }
+                    } else {
+                        // Build from components, avoiding duplicates
+                        // Start with make + model (if model doesn't already contain make)
+                        if (make && model) {
+                            if (model.toLowerCase().includes(make.toLowerCase())) {
+                                cameraStr = model;
+                            } else {
+                                cameraStr = `${make} ${model}`;
+                            }
+                        } else if (model) {
+                            cameraStr = model;
+                        } else if (make) {
+                            cameraStr = make;
+                        }
+                        
+                        // Add lensModel if it's not already in the string
+                        if (lensModel && !cameraStr.toLowerCase().includes(lensLower)) {
+                            // Check if lensModel contains model name - if so, extract unique part
+                            if (modelInLens && model) {
+                                // Remove model name from lensModel using simple string replacement
+                                const modelLower = model.toLowerCase();
+                                const lensLower = lensModel.toLowerCase();
+                                const modelIndex = lensLower.indexOf(modelLower);
+                                if (modelIndex !== -1) {
+                                    // Remove the model name from lensModel
+                                    let uniqueLens = lensModel.substring(0, modelIndex) + lensModel.substring(modelIndex + model.length);
+                                    uniqueLens = uniqueLens.trim();
+                                    // Clean up any double spaces
+                                    uniqueLens = uniqueLens.replace(/\s+/g, ' ').trim();
+                                    if (uniqueLens) {
+                                        cameraStr += ` ${uniqueLens}`;
+                                    }
+                                } else {
+                                    cameraStr += ` ${lensModel}`;
+                                }
+                            } else {
+                                cameraStr += ` ${lensModel}`;
+                            }
+                        }
+                        
+                        // Add focal/f-number if not already in string
+                        if (focalStr && fstopStr) {
+                            const focalPattern = `${focalStr} ${fstopStr}`;
+                            if (!cameraStr.toLowerCase().includes(focalPattern.toLowerCase())) {
+                                cameraStr += ` ${focalPattern}`;
+                            }
+                        }
+                    }
+                } else {
+                    // No lensModel, build from make + model + focal/f-number
+                    if (make && model) {
+                        if (model.toLowerCase().includes(make.toLowerCase())) {
+                            cameraStr = model;
+                        } else {
+                            cameraStr = `${make} ${model}`;
+                        }
+                    } else if (model) {
+                        cameraStr = model;
+                    } else if (make) {
+                        cameraStr = make;
+                    }
+                    
+                    if (focalStr && fstopStr) {
+                        const focalPattern = `${focalStr} ${fstopStr}`;
+                        if (cameraStr) {
+                            cameraStr += ` ${focalPattern}`;
+                        } else {
+                            cameraStr = focalPattern;
+                        }
+                    }
+                }
+                
+                if (cameraStr) {
+                    summaryHtml += `<div class="provenance-line"><span class="provenance-label">Camera:</span><span class="provenance-value">${escapeHtml(cameraStr)}</span></div>`;
+                }
+                
+            } else if (provenance === 'ai') {
+                summaryHtml += '<div class="provenance-summary-title">This image has AI metadata.</div>';
+                
+                // Extract AI model info - same logic as ComfyUI section
+                let modelName = '';
+                for (const payload of payloads) {
+                    if (payload.classification === 'json' && payload.content) {
+                        let content = payload.content;
+                        if (typeof content === 'string') {
+                            try {
+                                content = JSON.parse(content);
+                            } catch(e) {
+                                continue;
+                            }
+                        }
+                        if (content && typeof content === 'object') {
+                            // Check if it's a workflow structure
+                            const nodes = content.nodes || content;
+                            if (nodes && typeof nodes === 'object') {
+                                for (const [nodeId, node] of Object.entries(nodes)) {
+                                    if (node && typeof node === 'object' && node.class_type) {
+                                        // Extract from UNETLoader or CheckpointLoaderSimple
+                                        if (node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') {
+                                            if (node.inputs) {
+                                                if (node.inputs.unet_name) {
+                                                    modelName = String(node.inputs.unet_name);
+                                                    break;
+                                                } else if (node.inputs.ckpt_name) {
+                                                    modelName = String(node.inputs.ckpt_name);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (modelName) break;
+                        }
+                    }
+                }
+                
+                if (modelName) {
+                    summaryHtml += `<div class="provenance-line"><span class="provenance-label">Model:</span><span class="provenance-value">${escapeHtml(modelName)}</span></div>`;
+                }
+                
+                // Add date created for AI metadata
+                if (summary.dateCreated) {
+                    const dateCreated = new Date(summary.dateCreated);
+                    summaryHtml += `<div class="provenance-line"><span class="provenance-label">Date Created:</span><span class="provenance-value">${escapeHtml(dateCreated.toLocaleString())}</span></div>`;
+                }
+            } else {
+                summaryHtml += '<div class="provenance-summary-title">Not enough metadata to indicate provenance.</div>';
+            }
+            
+            // Add GPS if available
+            const gpsFormatted = gps.formatted || (gps.latitude !== undefined && gps.longitude !== undefined ? 
+                              `${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}` : null);
+            if (gpsFormatted) {
+                const uniqueId = `gps-provenance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                summaryHtml += `<div class="provenance-line"><span class="provenance-label">GPS:</span><span class="provenance-value"><div class="provenance-gps"><span>${escapeHtml(gpsFormatted)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(gpsFormatted)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></span></div>`;
+            }
+            
+            // Add date (for camera metadata)
+            if (provenance === 'camera') {
+                const dateTime = exif['EXIF DateTimeOriginal'] || exif['Image DateTime'] || exif['EXIF DateTime'];
+                if (dateTime) {
+                    summaryHtml += `<div class="provenance-line"><span class="provenance-label">Date:</span><span class="provenance-value">${escapeHtml(String(dateTime))}</span></div>`;
+                }
+            }
+            
+            summaryHtml += '</div>';
+            addLine(summaryHtml);
+        }
+        
         function addDataRecap(metadata) {
             const checks = [];
             
@@ -1555,13 +1974,32 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             const payloads = metadata.payloads?.payloads || [];
             const aiMeta = metadata.aiMetadata?.aiMetadata || {};
             const exifKeys = Object.keys(exif);
+            const gps = metadata.metadata?.gps || {};
             
             // Helper to check if any key contains substring
             const hasKey = (substr) => exifKeys.some(k => k.toLowerCase().includes(substr.toLowerCase()));
             
+            // Get GPS formatted string
+            const gpsFormatted = gps.formatted || (gps.latitude !== undefined && gps.longitude !== undefined ? 
+                              `${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}` : null);
+            const hasGPS = metadata.metadata?.gps !== undefined || hasKey('gps') || hasKey('latitude') || hasKey('longitude');
+            
             // Standard metadata checks
             checks.push({name: 'Camera data', found: hasKey('make') || hasKey('model') || hasKey('camera')});
-            checks.push({name: 'Geo data', found: metadata.metadata?.gps !== undefined || hasKey('gps') || hasKey('latitude') || hasKey('longitude')});
+            
+            // Make Geo data clickable if GPS is available
+            if (hasGPS && gpsFormatted) {
+                const uniqueId = `gps-recap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                checks.push({
+                    name: 'Geo data', 
+                    found: true, 
+                    clickable: true, 
+                    gpsCoords: gpsFormatted,
+                    uniqueId: uniqueId
+                });
+            } else {
+                checks.push({name: 'Geo data', found: hasGPS});
+            }
             checks.push({name: 'EXIF', found: exifKeys.length > 0});
             checks.push({name: 'IPTC', found: hasKey('iptc') || metadata.metadata?.iptc !== undefined});
             checks.push({name: 'XMP', found: metadata.metadata?.xmp !== undefined || hasKey('xmp')});
@@ -1643,8 +2081,13 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             // Format as compact list
             let recapHtml = '<div class="data-recap">';
             checks.forEach(check => {
-                const status = check.found ? '<span class="found">found</span>' : '<span class="not-found">not found</span>';
-                recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: ${status}</span> `;
+                if (check.clickable && check.found) {
+                    // Make Geo data clickable with copy icon
+                    recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: <span class="geo-data-clickable" onclick="copyGPSFromClick('${escapeHtml(check.gpsCoords)}', '${check.uniqueId}')"><span class="found">found</span> <span class="copy-icon" id="${check.uniqueId}" title="Click to copy coordinates"></span></span></span> `;
+                } else {
+                    const status = check.found ? '<span class="found">found</span>' : '<span class="not-found">not found</span>';
+                    recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: ${status}</span> `;
+                }
             });
             recapHtml += '</div>';
             addLine(recapHtml);
@@ -1956,6 +2399,11 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 } else {
                     addOutput('Metadata extracted successfully:', 'success');
                     
+                    // Display provenance summary first
+                    if (data.metadata) {
+                        addProvenanceSummary(data.metadata);
+                    }
+                    
                     // Display data type recap
                     if (data.metadata) {
                         addDataRecap(data.metadata);
@@ -2131,30 +2579,51 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             });
         }
         
-        // File input handler
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                processFile(e.target.files[0]);
+        // Initialize file handlers after DOM is ready
+        function initFileHandlers() {
+            terminal = document.getElementById('terminal');
+            fileInput = document.getElementById('fileInput');
+            uploadArea = document.getElementById('uploadArea');
+            parsingFlow = document.getElementById('parsingFlow');
+            chunksContent = document.getElementById('chunksContent');
+            
+            if (!fileInput || !uploadArea) {
+                console.error('File input or upload area not found');
+                return;
             }
-        });
+            
+            // File input handler
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    processFile(e.target.files[0]);
+                }
+            });
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
         
-        // Drag and drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                processFile(e.dataTransfer.files[0]);
-            }
-        });
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initFileHandlers);
+        } else {
+            initFileHandlers();
+        }
     </script>
 </body>
 </html>
