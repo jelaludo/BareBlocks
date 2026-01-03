@@ -632,8 +632,8 @@ HTML_TEMPLATE = """
         
         .metadata-table th:first-child,
         .metadata-table td:first-child {
-            width: 28%;
-            max-width: 160px;
+            width: 35%;
+            max-width: 220px;
             padding-right: 3px;
         }
         
@@ -1620,6 +1620,15 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 });
             }
             
+            function shortenFieldName(key) {
+                // Shorten specific long field names for better display
+                const shortenings = {
+                    'Thumbnail JPEGInterchangeFormat': 'Thumbnail JFIF',
+                    'Thumbnail JPEGInterchangeFormatLength': 'Thumbnail JFIFLength'
+                };
+                return shortenings[key] || key;
+            }
+            
             function formatValueWithHighlight(value, key) {
                 const formatted = formatValue(value);
                 if (shouldHighlight(key)) {
@@ -1642,54 +1651,74 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                             continue;
                         }
                         
-                        // For nested objects, show summary and expand on click
+                        // Check if this is the exif object - expand by default
+                        const isExif = key === 'exif' || key.toLowerCase() === 'exif';
                         const itemCount = Object.keys(value).length;
-                        html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(fullKey)}</td><td>[Object: ${itemCount} properties] <span class="toggle">+</span></td></tr>`;
-                        // Add nested rows (hidden by default) - use proper table structure
-                        html += `<tr class="nested" style="display:none;"><td colspan="2" style="padding-left:20px; padding-top:0; padding-bottom:0;">`;
+                        
+                        // For EXIF, show expanded by default; for others, show collapsed
+                        if (isExif) {
+                            // EXIF: show expanded immediately
+                            html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(fullKey)}</td><td>[Object: ${itemCount} properties] <span class="toggle">-</span></td></tr>`;
+                            html += `<tr class="nested" style="display:table-row;"><td colspan="2" style="padding-left:20px; padding-top:0; padding-bottom:0;">`;
+                        } else {
+                            // Other objects: show collapsed by default
+                            html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(fullKey)}</td><td>[Object: ${itemCount} properties] <span class="toggle">+</span></td></tr>`;
+                            html += `<tr class="nested" style="display:none;"><td colspan="2" style="padding-left:20px; padding-top:0; padding-bottom:0;">`;
+                        }
+                        
                         // Create nested table for proper structure
                         html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:10px;">`;
                         for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                            // Remove "EXIF " prefix from field names for cleaner display
+                            let displayKey = isExif && nestedKey.startsWith('EXIF ') ? nestedKey.substring(5) : nestedKey;
+                            // Shorten specific long field names
+                            displayKey = shortenFieldName(displayKey);
                             const nestedFullKey = `${fullKey}.${nestedKey}`;
                             
                             // Check if nested value is GPS formatted coordinates
                             if (nestedKey === 'formatted' && typeof nestedValue === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(nestedValue)) {
                                 const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                html += `<tr><td>${escapeHtml(nestedKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(nestedValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(nestedValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                                html += `<tr><td>${escapeHtml(displayKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(nestedValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(nestedValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
                                 continue;
                             }
                             
                             if (nestedValue && typeof nestedValue === 'object' && !Array.isArray(nestedValue) && depth < 1) {
                                 const nestedItemCount = Object.keys(nestedValue).length;
-                                html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(nestedKey)}</td><td>[Object: ${nestedItemCount} properties] <span class="toggle">+</span></td></tr>`;
+                                html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;"><td>${escapeHtml(displayKey)}</td><td>[Object: ${nestedItemCount} properties] <span class="toggle">+</span></td></tr>`;
                                 html += `<tr class="nested" style="display:none;"><td colspan="2" style="padding-left:15px;">`;
                                 html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:10px;">`;
                                 for (const [deepKey, deepValue] of Object.entries(nestedValue)) {
+                                    // Remove "EXIF " prefix from deep nested keys too
+                                    let displayDeepKey = isExif && deepKey.startsWith('EXIF ') ? deepKey.substring(5) : deepKey;
+                                    // Shorten specific long field names
+                                    displayDeepKey = shortenFieldName(displayDeepKey);
                                     // Check for GPS formatted coordinates in deep nesting
                                     if (deepKey === 'formatted' && typeof deepValue === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(deepValue)) {
                                         const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                        html += `<tr><td>${escapeHtml(deepKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(deepValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(deepValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                                        html += `<tr><td>${escapeHtml(displayDeepKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(deepValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(deepValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
                                     } else {
                                         const formattedDeep = formatValueWithHighlight(deepValue, deepKey);
-                                        html += `<tr><td>${escapeHtml(deepKey)}</td><td>${formattedDeep}</td></tr>`;
+                                        html += `<tr><td>${escapeHtml(displayDeepKey)}</td><td>${formattedDeep}</td></tr>`;
                                     }
                                 }
                                 html += `</table></td></tr>`;
                             } else {
                                 const formattedNested = formatValueWithHighlight(nestedValue, nestedKey);
-                                html += `<tr><td>${escapeHtml(nestedKey)}</td><td>${formattedNested}</td></tr>`;
+                                html += `<tr><td>${escapeHtml(displayKey)}</td><td>${formattedNested}</td></tr>`;
                             }
                         }
                         html += `</table></td></tr>`;
                     } else {
+                        // Shorten field name if needed
+                        const displayKey = shortenFieldName(fullKey);
                         // Check if this is a GPS formatted coordinate string
                         if (typeof value === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(value) && (key.toLowerCase().includes('gps') || key.toLowerCase().includes('coordinate') || key.toLowerCase() === 'formatted')) {
                             const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                             const gpsColor = shouldHighlight(key) ? accentColor : '#6FC3DF';
-                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text" style="color: ${gpsColor};">${escapeHtml(value)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(value)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                            html += `<tr><td>${escapeHtml(displayKey)}</td><td><div class="gps-coords"><span class="gps-coords-text" style="color: ${gpsColor};">${escapeHtml(value)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(value)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
                         } else {
                             const formattedValue = formatValueWithHighlight(value, key);
-                            html += `<tr><td>${escapeHtml(fullKey)}</td><td>${formattedValue}</td></tr>`;
+                            html += `<tr><td>${escapeHtml(displayKey)}</td><td>${formattedValue}</td></tr>`;
                         }
                     }
                 }
