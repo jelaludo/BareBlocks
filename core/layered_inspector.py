@@ -282,11 +282,16 @@ class LayeredInspector:
             "tool": None,
             "graphDetected": False,
             "wildcardsPresent": False,
-            "resolvedPromptAvailable": False
+            "resolvedPromptAvailable": False,
+            "pgpSignatureDetected": False
         }
         
-        # Check payloads for AI patterns
+        # Check payloads for AI patterns and PGP signatures
         for payload in payloads_data.get("payloads", []):
+            # Check for PGP signature
+            if payload.get("hasPGP"):
+                ai_metadata["pgpSignatureDetected"] = True
+            
             # Check if payload is already marked as ComfyUI
             if payload.get("isComfyUI"):
                 ai_metadata["tool"] = "ComfyUI"
@@ -304,6 +309,10 @@ class LayeredInspector:
             
             # If content is a string, try to parse and check
             if isinstance(content, str):
+                # Check for PGP signature in string content
+                if self._detect_pgp_signature(content):
+                    ai_metadata["pgpSignatureDetected"] = True
+                
                 # Check for ComfyUI patterns in text
                 if "comfy" in content.lower() or "workflow" in content.lower() or "CLIPTextEncode" in content:
                     ai_metadata["tool"] = "ComfyUI"
@@ -607,6 +616,31 @@ class LayeredInspector:
             "totalSegments": len(segments)
         }
     
+    def _detect_pgp_signature(self, text: str) -> bool:
+        """Detect PGP signature patterns in text content"""
+        if not isinstance(text, str):
+            return False
+        
+        text_upper = text.upper()
+        # Check for PGP signature markers
+        pgp_patterns = [
+            "-----BEGIN PGP",
+            "-----BEGIN PGP SIGNATURE",
+            "-----BEGIN PGP MESSAGE",
+            "-----BEGIN PGP PUBLIC KEY BLOCK",
+            "-----BEGIN PGP PRIVATE KEY BLOCK",
+            "-----BEGIN PGP CERTIFICATE"
+        ]
+        
+        for pattern in pgp_patterns:
+            if pattern in text_upper:
+                # Also check for corresponding END marker
+                end_pattern = pattern.replace("BEGIN", "END")
+                if end_pattern in text_upper:
+                    return True
+        
+        return False
+    
     def _analyze_png_text_chunk(self, file_path: str, chunk: Dict) -> Optional[Dict]:
         """Analyze PNG text chunk for payloads"""
         try:
@@ -631,6 +665,9 @@ class LayeredInspector:
                             except:
                                 text_value = text_data.decode('latin1', errors='ignore')
                             
+                            # Check for PGP signature
+                            has_pgp = self._detect_pgp_signature(text_value)
+                            
                             # Try JSON parse on the value
                             try:
                                 json_data = json.loads(text_value)
@@ -645,7 +682,8 @@ class LayeredInspector:
                                     "classification": "json",
                                     "content": json_data,
                                     "keyword": keyword,
-                                    "isComfyUI": is_comfyui
+                                    "isComfyUI": is_comfyui,
+                                    "hasPGP": has_pgp
                                 }
                             except:
                                 # Not JSON, return as text
@@ -654,7 +692,8 @@ class LayeredInspector:
                                     "size": chunk["size"],
                                     "classification": "text",
                                     "content": text_value,
-                                    "keyword": keyword
+                                    "keyword": keyword,
+                                    "hasPGP": has_pgp
                                 }
                     except:
                         pass
@@ -675,6 +714,8 @@ class LayeredInspector:
                                     import zlib
                                     decompressed = zlib.decompress(compressed_data)
                                     text_value = decompressed.decode('utf-8', errors='ignore')
+                                    # Check for PGP signature
+                                    has_pgp = self._detect_pgp_signature(text_value)
                                     # Try JSON parse
                                     try:
                                         json_data = json.loads(text_value)
@@ -688,7 +729,8 @@ class LayeredInspector:
                                             "classification": "json",
                                             "content": json_data,
                                             "keyword": keyword,
-                                            "isComfyUI": is_comfyui
+                                            "isComfyUI": is_comfyui,
+                                            "hasPGP": has_pgp
                                         }
                                     except:
                                         return {
@@ -696,7 +738,8 @@ class LayeredInspector:
                                             "size": chunk["size"],
                                             "classification": "text",
                                             "content": text_value,
-                                            "keyword": keyword
+                                            "keyword": keyword,
+                                            "hasPGP": has_pgp
                                         }
                                 except:
                                     pass
@@ -706,6 +749,8 @@ class LayeredInspector:
                 # Fallback: try direct decode
                 try:
                     text = data.decode('utf-8', errors='ignore')
+                    # Check for PGP signature
+                    has_pgp = self._detect_pgp_signature(text)
                     # Try JSON parse
                     try:
                         json_data = json.loads(text)
@@ -718,14 +763,16 @@ class LayeredInspector:
                             "size": chunk["size"],
                             "classification": "json",
                             "content": json_data,
-                            "isComfyUI": is_comfyui
+                            "isComfyUI": is_comfyui,
+                            "hasPGP": has_pgp
                         }
                     except:
                         return {
                             "source": chunk_type,
                             "size": chunk["size"],
                             "classification": "text",
-                            "content": text[:500]  # First 500 chars
+                            "content": text[:500] if len(text) > 500 else text,  # First 500 chars
+                            "hasPGP": has_pgp
                         }
                 except:
                     return {

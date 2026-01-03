@@ -953,13 +953,11 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             <div class="terminal-controls">
-                <button class="control-btn close" onclick="window.close()"></button>
-                <button class="control-btn minimize"></button>
-                <button class="control-btn maximize"></button>
+                <button class="control-btn close" onclick="window.close()" title="Close window"></button>
             </div>
         </div>
         
-        <div class="terminal-body" id="terminal"><div class="terminal-line"><span class="prompt">$</span> <span class="title">BareBlocks - Metadata Inspector</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="subtitle">Making image files legible beyond their pixels</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks --help</span></div><div class="terminal-line output">Usage: bareblocks &lt;file_path&gt; [options]</div><div class="terminal-line output">Options:</div><div class="terminal-line output">&nbsp;&nbsp;--format json    Output as JSON</div><div class="terminal-line output">&nbsp;&nbsp;--save FILE      Save metadata to file</div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks &lt;file&gt;</span></div></div>
+        <div class="terminal-body" id="terminal"><div class="terminal-line"><span class="prompt">$</span> <span class="title">BareBlocks - Metadata Inspector</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="subtitle">Making image files legible beyond their pixels</span></div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks --help</span></div><div class="terminal-line output">Usage: bareblocks &lt;file_path&gt; [options]</div><div class="terminal-line output">Options:</div><div class="terminal-line output">&nbsp;&nbsp;--format json    Output as JSON <span class="copy-icon" onclick="exportJSON()" title="Click to download JSON file" style="margin-left: 8px; cursor: pointer;"></span></div><div class="terminal-line output">&nbsp;&nbsp;--save FILE      Save metadata to file</div><div class="terminal-line"><span class="prompt">$</span> <span class="command">bareblocks &lt;file&gt;</span></div></div>
         
         <div class="parsing-flow-content" id="parsingFlow">
             <div class="parsing-flow-grid">
@@ -1048,7 +1046,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             <span class="input-prompt">$</span>
             <input type="file" id="fileInput" class="file-input" accept="image/*,video/*,audio/*,.pdf,.docx">
             <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                <span class="info">📁 Click or drag file here to analyze</span>
+                <span class="info">🗀 Click or drag file here to analyze</span>
             </div>
         </div>
     </div>
@@ -1621,6 +1619,14 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             }
             
             function shortenFieldName(key) {
+                // Remove redundant prefixes
+                if (key.startsWith('GPS ')) {
+                    key = key.substring(4); // Remove "GPS " prefix
+                }
+                // Remove "Interoperability " prefix - handles "Interoperability InteroperabilityIndex" -> "InteroperabilityIndex"
+                // Use regex to match "Interoperability " at the start (case-insensitive, flexible whitespace)
+                key = key.replace(/^Interoperability\s+/i, '');
+                
                 // Shorten specific long field names for better display
                 const shortenings = {
                     'Thumbnail JPEGInterchangeFormat': 'Thumbnail JFIF',
@@ -1812,6 +1818,51 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
         }
         
         window.copyGPSFromClick = copyGPSFromClick;
+        
+        function exportJSON(event) {
+            if (!window.currentMetadata) {
+                addOutput('No metadata available to export', 'error');
+                return;
+            }
+            
+            try {
+                const jsonStr = JSON.stringify(window.currentMetadata, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Generate filename: <fileName>_<containerType>_metadata.json
+                const summary = window.currentMetadata.summary || {};
+                const fileName = summary.fileName || 'file';
+                const containerType = summary.containerType || 'unknown';
+                // Remove file extension from fileName if present
+                const baseFileName = fileName.replace(/\.[^/.]+$/, '');
+                // Sanitize filename (remove invalid characters)
+                const sanitizedFileName = baseFileName.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const sanitizedContainerType = containerType.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+                const downloadName = `${sanitizedFileName}_${sanitizedContainerType}_metadata.json`;
+                
+                a.download = downloadName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Visual feedback
+                const icon = event ? event.target : null;
+                if (icon) {
+                    icon.classList.add('copied');
+                    setTimeout(() => {
+                        icon.classList.remove('copied');
+                    }, 2000);
+                }
+            } catch (err) {
+                addOutput(`Error exporting JSON: ${err.message}`, 'error');
+            }
+        }
+        
+        window.exportJSON = exportJSON;
         
         function addJsonOutput(data) {
             const jsonStr = JSON.stringify(data, null, 2);
@@ -2119,6 +2170,10 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             checks.push({name: 'Administrative data', found: hasKey('author') || hasKey('creator') || hasKey('artist')});
             checks.push({name: 'Technical specs (ISO, shutter, aperture)', found: hasKey('iso') || hasKey('fnumber') || hasKey('exposure') || hasKey('shutter') || hasKey('aperture')});
             checks.push({name: 'Geolocation blocks', found: metadata.metadata?.gps !== undefined});
+            
+            // Check for PGP signatures
+            const hasPGP = aiMeta.pgpSignatureDetected || payloads.some(p => p.hasPGP === true);
+            checks.push({name: 'PGP signature', found: hasPGP});
             
             // AI/Workflow specific - check payloads content
             const payloadContent = (p) => {
@@ -2498,6 +2553,9 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 } else {
                     addOutput('Metadata extracted successfully:', 'success');
                     
+                    // Store metadata for JSON export
+                    window.currentMetadata = data.metadata;
+                    
                     // Display provenance summary first
                     if (data.metadata) {
                         addProvenanceSummary(data.metadata);
@@ -2507,6 +2565,13 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     if (data.metadata) {
                         addDataRecap(data.metadata);
                     }
+                    
+                    // Add JSON export button
+                    const jsonExportLine = document.createElement('div');
+                    jsonExportLine.className = 'terminal-line';
+                    jsonExportLine.innerHTML = `<span class="output">--format json</span> <span class="copy-icon" onclick="exportJSON()" title="Click to download JSON file" style="margin-left: 8px;"></span>`;
+                    terminal.appendChild(jsonExportLine);
+                    terminal.scrollTop = terminal.scrollHeight;
                     
                     // Create metadata grid container
                     const gridContainer = document.createElement('div');
@@ -2624,7 +2689,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     // Display AI metadata
                     if (data.metadata && data.metadata.aiMetadata) {
                         const aiTable = createMetadataTableHTML(data.metadata.aiMetadata, 'ai');
-                        addGridSection('AI Metadata', aiTable, 'ai');
+                        addGridSection('Encryption and AI', aiTable, 'ai');
                     }
                     
                     // Display anomalies
