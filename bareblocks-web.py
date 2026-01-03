@@ -579,12 +579,39 @@ HTML_TEMPLATE = """
         }
         
         .metadata-section-title {
-            color: #6FC3DF;
             font-weight: bold;
             font-size: 12px;
             margin-bottom: 8px;
             padding-bottom: 5px;
             border-bottom: 1px solid #30363d;
+        }
+        
+        .metadata-section-title.summary {
+            color: #9CDCFE;
+        }
+        
+        .metadata-section-title.structure {
+            color: #C678DD;
+        }
+        
+        .metadata-section-title.metadata {
+            color: #D19A66;
+        }
+        
+        .metadata-section-title.comfyui {
+            color: #D19A66;
+        }
+        
+        .metadata-section-title.ai {
+            color: #56B6C2;
+        }
+        
+        .metadata-section-title.anomaly {
+            color: #E06C75;
+        }
+        
+        .metadata-section-title.payload {
+            color: #B294BB;
         }
         
         .metadata-table {
@@ -1563,6 +1590,44 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             const sectionClass = sectionType ? `table-${sectionType}` : '';
             let html = `<table class="metadata-table ${sectionClass}"><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>`;
             
+            // Get accent color for this section type
+            const accentColors = {
+                'summary': '#9CDCFE',
+                'structure': '#C678DD',
+                'metadata': '#D19A66',
+                'comfyui': '#D19A66',
+                'ai': '#56B6C2',
+                'anomaly': '#E06C75',
+                'payload': '#B294BB'
+            };
+            const accentColor = accentColors[sectionType] || '#6FC3DF';
+            
+            // Keys to highlight for each section type (only the value, not the key name)
+            const highlightKeys = {
+                'summary': ['containerType', 'fileSize (MB)', 'Dimensions'],
+                'metadata': ['gps', 'dpi'],
+                'comfyui': ['Sampler', 'Steps']
+            };
+            const keysToHighlight = highlightKeys[sectionType] || [];
+            
+            function shouldHighlight(key) {
+                // Check exact match or case-insensitive match
+                // Also check if key ends with the highlight key (for nested keys like "image_properties.dpi")
+                return keysToHighlight.some(k => {
+                    const keyLower = key.toLowerCase();
+                    const kLower = k.toLowerCase();
+                    return key === k || keyLower === kLower || keyLower.endsWith('.' + kLower) || keyLower.endsWith('_' + kLower);
+                });
+            }
+            
+            function formatValueWithHighlight(value, key) {
+                const formatted = formatValue(value);
+                if (shouldHighlight(key)) {
+                    return `<span style="color: ${accentColor};">${formatted}</span>`;
+                }
+                return formatted;
+            }
+            
             function addRows(obj, prefix = '', depth = 0) {
                 if (depth > 2) return; // Limit nesting depth
                 for (const [key, value] of Object.entries(obj)) {
@@ -1572,7 +1637,8 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         if (key === 'gps' && value.formatted) {
                             const gpsCoords = value.formatted;
                             const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(gpsCoords)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(gpsCoords)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                            const gpsColor = shouldHighlight(key) ? accentColor : '#6FC3DF';
+                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text" style="color: ${gpsColor};">${escapeHtml(gpsCoords)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(gpsCoords)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
                             continue;
                         }
                         
@@ -1604,12 +1670,14 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                                         const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                                         html += `<tr><td>${escapeHtml(deepKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(deepValue)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(deepValue)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
                                     } else {
-                                        html += `<tr><td>${escapeHtml(deepKey)}</td><td>${escapeHtml(formatValue(deepValue))}</td></tr>`;
+                                        const formattedDeep = formatValueWithHighlight(deepValue, deepKey);
+                                        html += `<tr><td>${escapeHtml(deepKey)}</td><td>${formattedDeep}</td></tr>`;
                                     }
                                 }
                                 html += `</table></td></tr>`;
                             } else {
-                                html += `<tr><td>${escapeHtml(nestedKey)}</td><td>${escapeHtml(formatValue(nestedValue))}</td></tr>`;
+                                const formattedNested = formatValueWithHighlight(nestedValue, nestedKey);
+                                html += `<tr><td>${escapeHtml(nestedKey)}</td><td>${formattedNested}</td></tr>`;
                             }
                         }
                         html += `</table></td></tr>`;
@@ -1617,9 +1685,11 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         // Check if this is a GPS formatted coordinate string
                         if (typeof value === 'string' && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(value) && (key.toLowerCase().includes('gps') || key.toLowerCase().includes('coordinate') || key.toLowerCase() === 'formatted')) {
                             const uniqueId = `gps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text">${escapeHtml(value)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(value)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
+                            const gpsColor = shouldHighlight(key) ? accentColor : '#6FC3DF';
+                            html += `<tr><td>${escapeHtml(fullKey)}</td><td><div class="gps-coords"><span class="gps-coords-text" style="color: ${gpsColor};">${escapeHtml(value)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(value)}', this)" id="${uniqueId}" title="Click to copy coordinates"></span></div></td></tr>`;
                         } else {
-                            html += `<tr><td>${escapeHtml(fullKey)}</td><td>${escapeHtml(formatValue(value))}</td></tr>`;
+                            const formattedValue = formatValueWithHighlight(value, key);
+                            html += `<tr><td>${escapeHtml(fullKey)}</td><td>${formattedValue}</td></tr>`;
                         }
                     }
                 }
@@ -2301,11 +2371,11 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 }
                 
                 if (samplerName) {
-                    html += `<tr><td><strong>Sampler</strong></td><td>${escapeHtml(samplerName)}</td></tr>`;
+                    html += `<tr><td><strong>Sampler</strong></td><td style="color: #D19A66;">${escapeHtml(samplerName)}</td></tr>`;
                 }
                 
                 if (steps !== null && steps !== undefined) {
-                    html += `<tr><td><strong>Steps</strong></td><td>${escapeHtml(String(steps))}</td></tr>`;
+                    html += `<tr><td><strong>Steps</strong></td><td style="color: #D19A66;">${escapeHtml(String(steps))}</td></tr>`;
                 }
                 
                 if (cfg !== null && cfg !== undefined) {
@@ -2420,7 +2490,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         section.className = 'metadata-section';
                         
                         const titleEl = document.createElement('div');
-                        titleEl.className = 'metadata-section-title';
+                        titleEl.className = `metadata-section-title ${sectionType}`;
                         titleEl.textContent = title;
                         section.appendChild(titleEl);
                         
