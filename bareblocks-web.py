@@ -448,6 +448,7 @@ HTML_TEMPLATE = """
         .terminal-controls {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
         
         .control-btn {
@@ -461,6 +462,30 @@ HTML_TEMPLATE = """
         .close { background: #ff5f56; }
         .minimize { background: #ffbd2e; }
         .maximize { background: #27c93f; }
+        
+        .thumbnail-container {
+            display: none;
+            margin-right: 15px;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #0d1117;
+            max-height: 180px;
+            max-width: 200px;
+        }
+        
+        .thumbnail-container.visible {
+            display: block;
+        }
+        
+        .thumbnail-container img {
+            display: block;
+            max-height: 180px;
+            max-width: 200px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
         
         .terminal-body {
             flex: 1;
@@ -983,6 +1008,9 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             <div class="terminal-controls">
+                <div class="thumbnail-container" id="thumbnailContainer">
+                    <img id="thumbnailImage" src="" alt="Image thumbnail">
+                </div>
                 <button class="control-btn close" onclick="window.close()" title="Close window"></button>
             </div>
         </div>
@@ -3030,6 +3058,21 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
         
         function processFile(file) {
             addCommand(`"${file.name}"`);
+            
+            // Create and display thumbnail if it's an image
+            const thumbnailContainer = document.getElementById('thumbnailContainer');
+            const thumbnailImage = document.getElementById('thumbnailImage');
+            if (thumbnailContainer && thumbnailImage && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    thumbnailImage.src = e.target.result;
+                    thumbnailContainer.classList.add('visible');
+                };
+                reader.readAsDataURL(file);
+            } else if (thumbnailContainer) {
+                // Hide thumbnail for non-image files
+                thumbnailContainer.classList.remove('visible');
+            }
             
             // Add analyzing line with placeholder for "done"
             const analyzingLine = document.createElement('div');
