@@ -722,10 +722,40 @@ HTML_TEMPLATE = """
         .found {
             color: #98C379;
             font-weight: bold;
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+        }
+        
+        .found:hover {
+            color: #7fb069;
+            text-decoration-style: solid;
         }
         
         .not-found {
             color: #6e7681;
+        }
+        
+        .section-highlight {
+            animation: highlightPulse 2s ease-in-out;
+            outline: 3px solid #98C379;
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
+        
+        @keyframes highlightPulse {
+            0% {
+                outline-color: #98C379;
+                outline-width: 3px;
+            }
+            50% {
+                outline-color: #7fb069;
+                outline-width: 5px;
+            }
+            100% {
+                outline-color: #98C379;
+                outline-width: 3px;
+            }
         }
         
         .copy-icon {
@@ -2115,6 +2145,74 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             addLine(summaryHtml);
         }
         
+        // Function to scroll to section and highlight it
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                // Remove any existing highlights
+                document.querySelectorAll('.section-highlight').forEach(el => {
+                    el.classList.remove('section-highlight');
+                });
+                
+                // Scroll to section
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Add highlight
+                section.classList.add('section-highlight');
+                
+                // Remove highlight after animation
+                setTimeout(() => {
+                    section.classList.remove('section-highlight');
+                }, 2000);
+            }
+        }
+        window.scrollToSection = scrollToSection;
+        
+        // Map check names to section IDs
+        function getSectionIdForCheck(checkName) {
+            const mapping = {
+                'Camera data': 'section-metadata',
+                'Geo data': 'section-metadata',
+                'GPS': 'section-metadata',
+                'EXIF': 'section-metadata',
+                'IPTC': 'section-metadata',
+                'XMP': 'section-metadata',
+                'ICC profiles': 'section-metadata',
+                'TIFF tags': 'section-metadata',
+                'JPEG APP markers': 'section-structure',
+                'PNG text chunks': 'section-structure',
+                'IPTC-IIM': 'section-metadata',
+                'Photoshop IRB': 'section-metadata',
+                'Camera maker notes': 'section-metadata',
+                'Thumbnail data': 'section-metadata',
+                'IFD (Image File Directory)': 'section-metadata',
+                'MakerNote': 'section-metadata',
+                'DNG raw metadata': 'section-metadata',
+                'Rights management': 'section-metadata',
+                'Descriptive keywords': 'section-metadata',
+                'Administrative data': 'section-metadata',
+                'Technical specs (ISO, shutter, aperture)': 'section-metadata',
+                'Geolocation blocks': 'section-metadata',
+                'PGP signature': 'section-ai',
+                'ComfyUI workflow JSON': 'section-comfyui',
+                'Prompt text files (.txt)': 'section-payload',
+                'LoRA config JSON': 'section-payload',
+                'Model training metadata YAML': 'section-payload',
+                'Checkpoint info JSON': 'section-payload',
+                'PNG tEXt chunks': 'section-structure',
+                'JSON sidecar files': 'section-payload',
+                'YAML prompt templates': 'section-payload',
+                'ControlNet params JSON': 'section-payload',
+                'A1111-style .json prompts': 'section-payload',
+                'Metadata JSON embeds': 'section-payload',
+                'Custom node configs YAML': 'section-payload',
+                'Batch generation logs TXT': 'section-payload',
+                'Upscale settings JSON': 'section-payload',
+                'Seed/history JSON': 'section-payload'
+            };
+            return mapping[checkName] || null;
+        }
+        
         function addDataRecap(metadata) {
             const checks = [];
             
@@ -2151,8 +2249,14 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 checks.push({name: 'Geo data', found: hasGPS});
             }
             checks.push({name: 'EXIF', found: exifKeys.length > 0});
-            checks.push({name: 'IPTC', found: hasKey('iptc') || metadata.metadata?.iptc !== undefined});
-            checks.push({name: 'XMP', found: metadata.metadata?.xmp !== undefined || hasKey('xmp')});
+            // Check if IPTC has actual content
+            const iptcData = metadata.metadata?.iptc;
+            const hasIPTCContent = iptcData && typeof iptcData === 'object' && Object.keys(iptcData).length > 0;
+            checks.push({name: 'IPTC', found: hasIPTCContent || hasKey('iptc')});
+            // Check if XMP has actual content (not just empty object)
+            const xmpData = metadata.metadata?.xmp;
+            const hasXMPContent = xmpData && typeof xmpData === 'object' && Object.keys(xmpData).length > 0;
+            checks.push({name: 'XMP', found: hasXMPContent || (hasKey('xmp') && exifKeys.some(k => k.toLowerCase().includes('xmp')))});
             checks.push({name: 'ICC profiles', found: metadata.metadata?.image_properties?.has_color_profile === true});
             checks.push({name: 'GPS', found: metadata.metadata?.gps !== undefined || hasKey('gps')});
             checks.push({name: 'TIFF tags', found: hasKey('tiff')});
@@ -2232,19 +2336,138 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 return p.classification === 'json' && (content.includes('seed') || content.includes('history'));
             })});
             
+            // Helper function to check if section will have content and get the correct section ID
+            function getSectionInfo(checkName, metadata) {
+                if (checkName === 'LoRA config JSON') {
+                    // Check if ComfyUI section exists (which would show LoRA)
+                    const hasComfyUI = metadata.aiMetadata?.aiMetadata?.tool === 'ComfyUI' || 
+                                     metadata.payloads?.payloads?.some(p => {
+                                         const content = p.content;
+                                         if (typeof content === 'object') {
+                                             return content.nodes || content.workflow;
+                                         }
+                                         if (typeof content === 'string') {
+                                             try {
+                                                 const parsed = JSON.parse(content);
+                                                 return parsed.nodes || parsed.workflow;
+                                             } catch(e) {
+                                                 return false;
+                                             }
+                                         }
+                                         return false;
+                                     });
+                    // If ComfyUI section exists, LoRA will be shown there
+                    if (hasComfyUI) {
+                        return { hasContent: true, sectionId: 'section-comfyui' };
+                    }
+                    // Otherwise check if payloads section will show it
+                    const hasInPayloads = metadata.payloads?.payloads?.some(p => {
+                        const content = typeof p.content === 'string' ? p.content.toLowerCase() : 
+                                       (typeof p.content === 'object' ? JSON.stringify(p.content).toLowerCase() : '');
+                        return p.classification === 'json' && (content.includes('lora') || content.includes('loras'));
+                    });
+                    return { hasContent: hasInPayloads, sectionId: 'section-payload' };
+                }
+                if (checkName === 'XMP') {
+                    const xmpData = metadata.metadata?.xmp;
+                    const hasContent = xmpData && typeof xmpData === 'object' && Object.keys(xmpData).length > 0;
+                    return { hasContent: hasContent, sectionId: 'section-metadata' };
+                }
+                if (checkName === 'IPTC') {
+                    const iptcData = metadata.metadata?.iptc;
+                    const hasContent = iptcData && typeof iptcData === 'object' && Object.keys(iptcData).length > 0;
+                    return { hasContent: hasContent, sectionId: 'section-metadata' };
+                }
+                // For other checks, use default mapping
+                const sectionId = getSectionIdForCheck(checkName);
+                return { hasContent: true, sectionId: sectionId };
+            }
+            
             // Format as compact list
             let recapHtml = '<div class="data-recap">';
             checks.forEach(check => {
                 if (check.clickable && check.found) {
-                    // Make Geo data clickable with copy icon
+                    // Make Geo data clickable with copy icon (special case - keep copy functionality)
                     recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: <span class="geo-data-clickable" onclick="copyGPSFromClick('${escapeHtml(check.gpsCoords)}', '${check.uniqueId}')"><span class="found">found</span> <span class="copy-icon" id="${check.uniqueId}" title="Click to copy coordinates"></span></span></span> `;
+                } else if (check.found) {
+                    // Get section info (content check and correct section ID)
+                    const sectionInfo = getSectionInfo(check.name, metadata);
+                    if (sectionInfo.hasContent && sectionInfo.sectionId) {
+                        recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found" onclick="scrollToSection('${sectionInfo.sectionId}')" title="Click to jump to ${escapeHtml(check.name)} section">found</span></span> `;
+                    } else {
+                        recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found">found</span></span> `;
+                    }
                 } else {
-                    const status = check.found ? '<span class="found">found</span>' : '<span class="not-found">not found</span>';
-                    recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: ${status}</span> `;
+                    recapHtml += `<span class="recap-item">${escapeHtml(check.name)}: <span class="not-found">not found</span></span> `;
                 }
             });
             recapHtml += '</div>';
             addLine(recapHtml);
+        }
+        
+        // Function to extract wildcards and their resolved values
+        function extractWildcards(originalPrompt, resolvedPrompt) {
+            if (!originalPrompt || !resolvedPrompt) return [];
+            
+            const wildcards = [];
+            const wildcardPattern = /__([^_]+)__/g;
+            const matches = [];
+            let match;
+            
+            // Find all wildcard patterns in original prompt
+            while ((match = wildcardPattern.exec(originalPrompt)) !== null) {
+                matches.push({
+                    pattern: match[0], // e.g., "__dogbreed__"
+                    name: match[1],   // e.g., "dogbreed" or "mklinkwildcards/catbreed"
+                    index: match.index
+                });
+            }
+            
+            if (matches.length === 0) return [];
+            
+            // For each wildcard, extract the resolved value by comparing original and resolved prompts
+            for (let i = 0; i < matches.length; i++) {
+                const wildcard = matches[i];
+                
+                // Get text before this wildcard
+                const beforeWildcard = originalPrompt.substring(0, wildcard.index);
+                // Get text after this wildcard
+                const afterWildcard = originalPrompt.substring(wildcard.index + wildcard.pattern.length);
+                
+                // Find the "before" text in resolved prompt
+                let resolvedBeforeIndex = resolvedPrompt.indexOf(beforeWildcard);
+                if (resolvedBeforeIndex === -1 && i > 0) {
+                    // If exact match not found, try to find it after previous wildcard resolution
+                    const prevWildcard = wildcards[i - 1];
+                    if (prevWildcard && prevWildcard.resolved) {
+                        const prevResolvedIndex = resolvedPrompt.indexOf(prevWildcard.resolved);
+                        if (prevResolvedIndex > -1) {
+                            const searchStart = prevResolvedIndex + prevWildcard.resolved.length;
+                            resolvedBeforeIndex = resolvedPrompt.indexOf(beforeWildcard.substring(beforeWildcard.length - Math.min(20, beforeWildcard.length)), searchStart);
+                        }
+                    }
+                }
+                
+                if (resolvedBeforeIndex > -1) {
+                    // Find the "after" text in resolved prompt, starting after the "before" text
+                    const searchStart = resolvedBeforeIndex + beforeWildcard.length;
+                    const resolvedAfterIndex = resolvedPrompt.indexOf(afterWildcard, searchStart);
+                    
+                    if (resolvedAfterIndex > -1) {
+                        // Extract the resolved value (text between "before" and "after")
+                        const resolvedValue = resolvedPrompt.substring(searchStart, resolvedAfterIndex).trim();
+                        
+                        if (resolvedValue && resolvedValue.length > 0 && resolvedValue !== wildcard.pattern) {
+                            wildcards.push({
+                                name: wildcard.pattern,
+                                resolved: resolvedValue
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return wildcards;
         }
         
         function addComfyUISection(metadata, targetContainer = null) {
@@ -2256,6 +2479,8 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             let promptText = null;
             let negativePrompt = null;
             let allWorkflowData = [];
+            let originalPromptWithWildcards = null;
+            let resolvedPrompt = null;
             
             // First, try to find the main workflow (usually in "workflow" keyword)
             for (const payload of payloads) {
@@ -2275,15 +2500,27 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 }
             }
             
-            // Also check the "prompt" keyword payload for node data
+            // Also check the "prompt" keyword payload for node data and wildcard detection
             let promptNodes = null;
             for (const payload of payloads) {
                 if (payload.classification === 'json' && payload.keyword === 'prompt') {
                     let content = payload.content;
                     if (typeof content === 'string') {
+                        // Check if this is a string prompt with wildcards
+                        if (content.includes('__') && /__[^_]+__/.test(content)) {
+                            originalPromptWithWildcards = content;
+                            // If this is the original prompt with wildcards, use it as promptText
+                            if (!promptText) {
+                                promptText = content;
+                            }
+                        }
                         try {
                             content = JSON.parse(content);
                         } catch(e) {
+                            // If parsing fails, it might be a plain text prompt
+                            if (!promptText && content.length > 10) {
+                                promptText = content;
+                            }
                             continue;
                         }
                     }
@@ -2295,6 +2532,72 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                             workflowData.nodes = content;
                         }
                         break;
+                    }
+                }
+            }
+            
+            // Also check text payloads for original prompt with wildcards
+            if (!originalPromptWithWildcards) {
+                for (const payload of payloads) {
+                    if (payload.classification === 'text' || (payload.classification === 'json' && typeof payload.content === 'string')) {
+                        const content = typeof payload.content === 'string' ? payload.content : String(payload.content || '');
+                        if (content.includes('__') && /__[^_]+__/.test(content) && content.length > 20) {
+                            originalPromptWithWildcards = content;
+                            if (!promptText) {
+                                promptText = content;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Look for resolved prompt in workflow payload (string content)
+            // The resolved prompt is typically in the workflow keyword payload as a string
+            for (const payload of payloads) {
+                if (payload.classification === 'json' && payload.keyword === 'workflow') {
+                    let content = payload.content;
+                    if (typeof content === 'string') {
+                        // Check if this looks like a resolved prompt
+                        // It should be a string, not contain wildcards, and be similar in structure to original
+                        if (originalPromptWithWildcards) {
+                            // If we have an original with wildcards, this string is likely the resolved version
+                            if (!content.includes('__') && content.length >= originalPromptWithWildcards.length * 0.8) {
+                                resolvedPrompt = content;
+                                break;
+                            }
+                        } else {
+                            // If no original found yet, check if this is a resolved prompt (no wildcards, contains text)
+                            if (!content.includes('__') && content.length > 50 && /^[a-zA-Z0-9\s,\.\-]+$/.test(content.substring(0, 100))) {
+                                // This might be a resolved prompt, but we need the original to match it
+                                // Store it temporarily
+                                resolvedPrompt = content;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Also check all payloads for resolved prompt if not found yet
+            if (!resolvedPrompt && originalPromptWithWildcards) {
+                for (const payload of payloads) {
+                    if (payload.classification === 'json') {
+                        let content = payload.content;
+                        if (typeof content === 'string') {
+                            // Check if this looks like a resolved prompt
+                            if (!content.includes('__') && 
+                                content.length > originalPromptWithWildcards.length * 0.8 &&
+                                content.length < originalPromptWithWildcards.length * 2) {
+                                // Check if it shares some common words with original
+                                const originalWords = originalPromptWithWildcards.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+                                const contentWords = content.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+                                const commonWords = originalWords.filter(w => contentWords.includes(w));
+                                if (commonWords.length >= 2) {
+                                    resolvedPrompt = content;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -2476,10 +2779,29 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 }
                 
                 // Show prompt if available - FULL TEXT, NO TRUNCATION
-                if (promptText) {
-                    const fullPrompt = String(promptText);
-                    // Show full prompt, no truncation, with green color
-                    html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;">${highlightBracketedText(fullPrompt)}</td></tr>`;
+                // Use original prompt with wildcards if available, otherwise use extracted promptText
+                const displayPrompt = originalPromptWithWildcards || promptText;
+                if (displayPrompt) {
+                    const fullPrompt = String(displayPrompt);
+                    const promptId = `prompt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    // Show full prompt, no truncation, with green color and copy icon
+                    html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(fullPrompt)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(fullPrompt.replace(/'/g, "\\'").replace(/"/g, '&quot;'))}', this)" id="${promptId}" title="Click to copy prompt"></span></div></td></tr>`;
+                }
+                
+                // Show resolved prompt if wildcards were detected
+                if (originalPromptWithWildcards && resolvedPrompt) {
+                    const resolvedId = `resolved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    html += `<tr><td><strong>Resolved Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(resolvedPrompt)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(resolvedPrompt.replace(/'/g, "\\'").replace(/"/g, '&quot;'))}', this)" id="${resolvedId}" title="Click to copy resolved prompt"></span></div></td></tr>`;
+                    
+                    // Show wildcard resolutions right after resolved prompt
+                    const wildcards = extractWildcards(originalPromptWithWildcards, resolvedPrompt);
+                    if (wildcards.length > 0) {
+                        html += `<tr><td colspan="2" style="border-top: 1px solid #30363d; padding-top: 5px;"></td></tr>`;
+                        html += `<tr><td colspan="2"><strong style="color: #6FC3DF;">Wildcard Resolutions</strong></td></tr>`;
+                        for (const wc of wildcards) {
+                            html += `<tr><td style="color: #D19A66; font-family: monospace;">${escapeHtml(wc.name)}</td><td style="color: #98C379;">${escapeHtml(wc.resolved)}</td></tr>`;
+                        }
+                    }
                 }
                 
                 if (negativePrompt) {
@@ -2582,6 +2904,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     function addGridSection(title, content, sectionType) {
                         const section = document.createElement('div');
                         section.className = 'metadata-section';
+                        section.id = `section-${sectionType}`;
                         
                         const titleEl = document.createElement('div');
                         titleEl.className = `metadata-section-title ${sectionType}`;
