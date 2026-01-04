@@ -2928,6 +2928,37 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(fullPrompt)}</span><span class="copy-icon copy-text-btn" data-text-encoded="${promptEncoded}" id="${promptId}" title="Click to copy prompt"></span></div></td></tr>`;
                 }
                 
+                // Count wildcards in the prompt
+                // Wildcards can contain underscores (e.g., __mklinkwildcards/w1/location_building__)
+                // So we need to match __...__ where ... can include underscores
+                // Use non-greedy matching (.*?) to match from __ to the next __
+                let wildcardCount = 0;
+                if (displayPrompt) {
+                    // Pattern: __ followed by any characters (including underscores) until the next __
+                    // Use non-greedy (.*?) to match the shortest possible string between __ and __
+                    const wildcardPattern = /__.*?__/g;
+                    let match;
+                    // Reset regex lastIndex to ensure we start from the beginning
+                    wildcardPattern.lastIndex = 0;
+                    // Count all matches using exec() in a loop
+                    while ((match = wildcardPattern.exec(displayPrompt)) !== null) {
+                        // Verify it's not just ____ (empty wildcard - exactly 4 characters)
+                        if (match[0].length > 4) {
+                            wildcardCount++;
+                        }
+                    }
+                    // Debug logging
+                    console.log('Wildcard count:', wildcardCount, 'for prompt:', displayPrompt.substring(0, 150));
+                }
+                
+                // Show Wildcards Used field
+                html += `<tr><td><strong>Wildcards Used</strong></td><td style="color: ${wildcardCount > 0 ? '#D19A66' : '#6e7681'}; font-weight: ${wildcardCount > 0 ? 'bold' : 'normal'};">${wildcardCount}</td></tr>`;
+                
+                // Show Wildcard result field
+                const wildcardResult = resolvedPrompt ? 'resolution saved' : 'resolution not saved';
+                const wildcardResultColor = resolvedPrompt ? '#98C379' : '#6e7681';
+                html += `<tr><td><strong>Wildcard result</strong></td><td style="color: ${wildcardResultColor}; font-weight: ${resolvedPrompt ? 'bold' : 'normal'};">${wildcardResult}</td></tr>`;
+                
                 // Always show Resolved Prompt field (empty if not found)
                 const resolvedId = `resolved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 if (resolvedPrompt) {
@@ -2941,13 +2972,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 
                 // Show wildcard resolutions if both original and resolved prompts are available
                 if (originalPromptWithWildcards && resolvedPrompt) {
-                    console.log('Displaying resolved prompt and wildcards');
-                    const resolvedId = `resolved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                    // Use data attribute instead of inline onclick to avoid string escaping issues
-                    const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedPrompt)));
-                    html += `<tr><td><strong>Resolved Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(resolvedPrompt)}</span><span class="copy-icon copy-text-btn" data-text-encoded="${resolvedEncoded}" id="${resolvedId}" title="Click to copy resolved prompt"></span></div></td></tr>`;
-                    
-                    // Show wildcard resolutions right after resolved prompt
+                    console.log('Displaying wildcard resolutions');
                     const wildcards = extractWildcards(originalPromptWithWildcards, resolvedPrompt);
                     console.log('Extracted wildcards:', wildcards);
                     if (wildcards.length > 0) {
@@ -2960,7 +2985,7 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                         console.log('No wildcards extracted - original:', originalPromptWithWildcards.substring(0, 100), 'resolved:', resolvedPrompt.substring(0, 100));
                     }
                 } else {
-                    console.log('Not showing resolved prompt - originalPromptWithWildcards:', !!originalPromptWithWildcards, 'resolvedPrompt:', !!resolvedPrompt);
+                    console.log('Not showing wildcard resolutions - originalPromptWithWildcards:', !!originalPromptWithWildcards, 'resolvedPrompt:', !!resolvedPrompt);
                 }
                 
                 if (negativePrompt) {
@@ -3471,4 +3496,5 @@ if __name__ == '__main__':
     Timer(2.0, open_browser).start()
     
     app.run(host='0.0.0.0', port=port, debug=True)
+
 
