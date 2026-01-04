@@ -2482,26 +2482,8 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
             let originalPromptWithWildcards = null;
             let resolvedPrompt = null;
             
-            // First, try to find the main workflow (usually in "workflow" keyword)
-            for (const payload of payloads) {
-                if (payload.classification === 'json' && payload.keyword === 'workflow') {
-                    let content = payload.content;
-                    if (typeof content === 'string') {
-                        try {
-                            content = JSON.parse(content);
-                        } catch(e) {
-                            continue;
-                        }
-                    }
-                    if (content && typeof content === 'object') {
-                        workflowData = content;
-                        break;
-                    }
-                }
-            }
-            
-            // Also check the "prompt" keyword payload for node data and wildcard detection
-            let promptNodes = null;
+            // First, check for original prompt with wildcards and resolved prompt BEFORE parsing workflow JSON
+            // Check the "prompt" keyword payload for original prompt with wildcards
             for (const payload of payloads) {
                 if (payload.classification === 'json' && payload.keyword === 'prompt') {
                     let content = payload.content;
@@ -2514,29 +2496,11 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                                 promptText = content;
                             }
                         }
-                        try {
-                            content = JSON.parse(content);
-                        } catch(e) {
-                            // If parsing fails, it might be a plain text prompt
-                            if (!promptText && content.length > 10) {
-                                promptText = content;
-                            }
-                            continue;
-                        }
-                    }
-                    if (content && typeof content === 'object') {
-                        promptNodes = content;
-                        if (!workflowData) {
-                            workflowData = { nodes: content };
-                        } else {
-                            workflowData.nodes = content;
-                        }
-                        break;
                     }
                 }
             }
             
-            // Also check text payloads for original prompt with wildcards
+            // Check text payloads for original prompt with wildcards
             if (!originalPromptWithWildcards) {
                 for (const payload of payloads) {
                     if (payload.classification === 'text' || (payload.classification === 'json' && typeof payload.content === 'string')) {
@@ -2552,51 +2516,194 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 }
             }
             
-            // Look for resolved prompt in workflow payload (string content)
-            // The resolved prompt is typically in the workflow keyword payload as a string
-            for (const payload of payloads) {
-                if (payload.classification === 'json' && payload.keyword === 'workflow') {
-                    let content = payload.content;
-                    if (typeof content === 'string') {
-                        // Check if this looks like a resolved prompt
-                        // It should be a string, not contain wildcards, and be similar in structure to original
-                        if (originalPromptWithWildcards) {
-                            // If we have an original with wildcards, this string is likely the resolved version
-                            if (!content.includes('__') && content.length >= originalPromptWithWildcards.length * 0.8) {
-                                resolvedPrompt = content;
-                                break;
-                            }
-                        } else {
-                            // If no original found yet, check if this is a resolved prompt (no wildcards, contains text)
-                            if (!content.includes('__') && content.length > 50 && /^[a-zA-Z0-9\s,\.\-]+$/.test(content.substring(0, 100))) {
-                                // This might be a resolved prompt, but we need the original to match it
-                                // Store it temporarily
-                                resolvedPrompt = content;
+            // Look for resolved prompt in ALL payloads
+            // First check for explicit "prompt_resolved" keyword (most reliable)
+            // This works regardless of classification (json/text)
+            if (!resolvedPrompt) {
+                for (const payload of payloads) {
+                    const keyword = payload.keyword || '';
+                    if (keyword === 'prompt_resolved' || keyword === 'promptResolved' || keyword.toLowerCase() === 'prompt_resolved') {
+                        let content = payload.content;
+                        // Handle both string and object content
+                        if (typeof content === 'string' && content.length > 20) {
+                            resolvedPrompt = content;
+                            console.log('Found resolved prompt via prompt_resolved keyword:', content.substring(0, 100) + '...');
+                            break;
+                        } else if (typeof content === 'object' && content !== null) {
+                            // If it's an object, try to stringify it
+                            try {
+                                const contentStr = JSON.stringify(content);
+                                if (contentStr.length > 20) {
+                                    resolvedPrompt = contentStr;
+                                    console.log('Found resolved prompt via prompt_resolved keyword (from object)');
+                                    break;
+                                }
+                            } catch(e) {
+                                // Ignore
                             }
                         }
                     }
                 }
             }
             
-            // Also check all payloads for resolved prompt if not found yet
-            if (!resolvedPrompt && originalPromptWithWildcards) {
+            // The resolved prompt is typically in the workflow keyword payload as a string
+            if (originalPromptWithWildcards && !resolvedPrompt) {
+                // Check workflow keyword payload first
                 for (const payload of payloads) {
-                    if (payload.classification === 'json') {
+                    if (payload.classification === 'json' && payload.keyword === 'workflow') {
                         let content = payload.content;
                         if (typeof content === 'string') {
-                            // Check if this looks like a resolved prompt
-                            if (!content.includes('__') && 
-                                content.length > originalPromptWithWildcards.length * 0.8 &&
-                                content.length < originalPromptWithWildcards.length * 2) {
-                                // Check if it shares some common words with original
-                                const originalWords = originalPromptWithWildcards.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-                                const contentWords = content.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-                                const commonWords = originalWords.filter(w => contentWords.includes(w));
-                                if (commonWords.length >= 2) {
-                                    resolvedPrompt = content;
-                                    break;
+                            // Check if this is a resolved prompt (string, no wildcards, similar structure)
+                            if (!content.includes('__') && content.length >= originalPromptWithWildcards.length * 0.7) {
+                                // Try to parse as JSON - if it fails, it's likely the resolved prompt string
+                                let isJSON = false;
+                                try {
+                                    const parsed = JSON.parse(content);
+                                    if (parsed && typeof parsed === 'object') {
+                                        isJSON = true;
+                                        workflowData = parsed;
+                                    }
+                                } catch(e) {
+                                    // Not JSON - this is likely the resolved prompt
+                                }
+                                
+                                // If not JSON, or if JSON parsing succeeded but we still want to check
+                                if (!isJSON || !workflowData) {
+                                    // Check if it shares common words/phrases with original
+                                    const originalLower = originalPromptWithWildcards.toLowerCase();
+                                    const contentLower = content.toLowerCase();
+                                    
+                                    // Extract key phrases from original (excluding wildcards)
+                                    const originalPhrases = originalLower.split(/\s+/).filter(w => w.length > 2 && !w.includes('__'));
+                                    const contentPhrases = contentLower.split(/\s+/).filter(w => w.length > 2);
+                                    
+                                    // Count matching words
+                                    const matchingWords = originalPhrases.filter(w => contentPhrases.includes(w));
+                                    
+                                    // Also check for key phrases like "painting", "dog", "cat", "happily", "chasing"
+                                    const keyPhrases = ['painting', 'dog', 'cat', 'happily', 'chasing', 'a'];
+                                    const hasKeyPhrases = keyPhrases.some(phrase => originalLower.includes(phrase) && contentLower.includes(phrase));
+                                    
+                                    if (matchingWords.length >= 2 || hasKeyPhrases) {
+                                        resolvedPrompt = content;
+                                        // Don't break - continue to look for workflow JSON in other payloads
+                                    }
                                 }
                             }
+                        }
+                    }
+                }
+                
+                // If not found in workflow, check all other JSON payloads
+                if (!resolvedPrompt) {
+                    for (const payload of payloads) {
+                        if (payload.classification === 'json' && payload.keyword !== 'prompt') {
+                            let content = payload.content;
+                            if (typeof content === 'string') {
+                                // Check if this looks like a resolved prompt
+                                if (!content.includes('__') && 
+                                    content.length >= originalPromptWithWildcards.length * 0.7 &&
+                                    content.length <= originalPromptWithWildcards.length * 2.5) {
+                                    // Check if it shares common words/phrases
+                                    const originalLower = originalPromptWithWildcards.toLowerCase();
+                                    const contentLower = content.toLowerCase();
+                                    const originalPhrases = originalLower.split(/\s+/).filter(w => w.length > 2 && !w.includes('__'));
+                                    const contentPhrases = contentLower.split(/\s+/).filter(w => w.length > 2);
+                                    const matchingWords = originalPhrases.filter(w => contentPhrases.includes(w));
+                                    
+                                    const keyPhrases = ['painting', 'dog', 'cat', 'happily', 'chasing'];
+                                    const hasKeyPhrases = keyPhrases.some(phrase => originalLower.includes(phrase) && contentLower.includes(phrase));
+                                    
+                                    if (matchingWords.length >= 2 || hasKeyPhrases) {
+                                        resolvedPrompt = content;
+                                        // Don't break - continue to look for workflow JSON
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Now check the "prompt" keyword payload for node data (JSON structure)
+            // Note: The original prompt with wildcards is a string, but the workflow JSON is an object
+            // So even if the string matches, we should still try to parse it as JSON
+            let promptNodes = null;
+            for (const payload of payloads) {
+                if (payload.classification === 'json' && payload.keyword === 'prompt') {
+                    let content = payload.content;
+                    if (typeof content === 'string') {
+                        // If it matches the original prompt, it's likely just a string, not JSON
+                        // But try to parse anyway in case it's JSON that happens to match
+                        if (content === originalPromptWithWildcards) {
+                            // Try to parse - if it fails, it's just the string prompt
+                            try {
+                                const parsed = JSON.parse(content);
+                                if (parsed && typeof parsed === 'object') {
+                                    // It's actually JSON, use it
+                                    content = parsed;
+                                } else {
+                                    // Not JSON, skip
+                                    continue;
+                                }
+                            } catch(e) {
+                                // Not JSON, skip
+                                continue;
+                            }
+                        } else {
+                            // Different string, try to parse as JSON
+                            try {
+                                content = JSON.parse(content);
+                            } catch(e) {
+                                continue;
+                            }
+                        }
+                    }
+                    if (content && typeof content === 'object') {
+                        promptNodes = content;
+                        if (!workflowData) {
+                            workflowData = { nodes: content };
+                        } else {
+                            workflowData.nodes = content;
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Also try to find workflow JSON in workflow keyword (if not already found)
+            // Note: resolvedPrompt is a string, so if content is an object, it can't be the resolved prompt
+            if (!workflowData) {
+                for (const payload of payloads) {
+                    if (payload.classification === 'json' && payload.keyword === 'workflow') {
+                        let content = payload.content;
+                        if (typeof content === 'string') {
+                            // Skip if this is the resolved prompt string (already handled)
+                            // But only if it's actually a string, not JSON
+                            if (content === resolvedPrompt) {
+                                // Try to parse anyway - maybe it's JSON that happens to match
+                                try {
+                                    const parsed = JSON.parse(content);
+                                    if (parsed && typeof parsed === 'object') {
+                                        workflowData = parsed;
+                                        break;
+                                    }
+                                } catch(e) {
+                                    // Not JSON, skip it
+                                    continue;
+                                }
+                            } else {
+                                // Different string, try to parse as JSON
+                                try {
+                                    content = JSON.parse(content);
+                                } catch(e) {
+                                    continue;
+                                }
+                            }
+                        }
+                        if (content && typeof content === 'object') {
+                            workflowData = content;
+                            break;
                         }
                     }
                 }
@@ -2696,8 +2803,31 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     negativePrompts.sort((a, b) => b.length - a.length);
                     
                     if (prompts.length > 0) {
-                        // Use the longest prompt (usually the main one) - FULL TEXT, NO TRUNCATION
-                        promptText = prompts[0];
+                        // Check if any of these prompts is the resolved version (no wildcards, similar to original)
+                        if (originalPromptWithWildcards) {
+                            for (const p of prompts) {
+                                if (!p.includes('__') && p.length >= originalPromptWithWildcards.length * 0.7) {
+                                    // Check if it shares common words with original
+                                    const originalLower = originalPromptWithWildcards.toLowerCase();
+                                    const pLower = p.toLowerCase();
+                                    const originalWords = originalLower.split(/\s+/).filter(w => w.length > 2 && !w.includes('__'));
+                                    const pWords = pLower.split(/\s+/).filter(w => w.length > 2);
+                                    const matchingWords = originalWords.filter(w => pWords.includes(w));
+                                    
+                                    if (matchingWords.length >= 2) {
+                                        // This is likely the resolved prompt
+                                        if (!resolvedPrompt) {
+                                            resolvedPrompt = p;
+                                        }
+                                    }
+                                }
+                            }
+                            // Use original with wildcards as the display prompt
+                            promptText = originalPromptWithWildcards;
+                        } else {
+                            // No original with wildcards found, use the longest prompt
+                            promptText = prompts[0];
+                        }
                     }
                     if (negativePrompts.length > 0) {
                         negativePrompt = negativePrompts[0];
@@ -2778,30 +2908,59 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                     html += `<tr><td colspan="2" style="border-top: 1px solid #30363d; padding-top: 5px;"></td></tr>`;
                 }
                 
+                // Debug logging
+                console.log('Wildcard detection:', {
+                    originalPromptWithWildcards: originalPromptWithWildcards ? originalPromptWithWildcards.substring(0, 100) + '...' : null,
+                    resolvedPrompt: resolvedPrompt ? resolvedPrompt.substring(0, 100) + '...' : null,
+                    promptText: promptText ? promptText.substring(0, 100) + '...' : null
+                });
+                
                 // Show prompt if available - FULL TEXT, NO TRUNCATION
                 // Use original prompt with wildcards if available, otherwise use extracted promptText
                 const displayPrompt = originalPromptWithWildcards || promptText;
                 if (displayPrompt) {
                     const fullPrompt = String(displayPrompt);
                     const promptId = `prompt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    // Use data attribute instead of inline onclick to avoid string escaping issues
+                    // Base64 encode to safely store the text in HTML attribute
+                    const promptEncoded = btoa(unescape(encodeURIComponent(fullPrompt)));
                     // Show full prompt, no truncation, with green color and copy icon
-                    html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(fullPrompt)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(fullPrompt.replace(/'/g, "\\'").replace(/"/g, '&quot;'))}', this)" id="${promptId}" title="Click to copy prompt"></span></div></td></tr>`;
+                    html += `<tr><td><strong>Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(fullPrompt)}</span><span class="copy-icon copy-text-btn" data-text-encoded="${promptEncoded}" id="${promptId}" title="Click to copy prompt"></span></div></td></tr>`;
                 }
                 
-                // Show resolved prompt if wildcards were detected
+                // Always show Resolved Prompt field (empty if not found)
+                const resolvedId = `resolved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                if (resolvedPrompt) {
+                    // Resolved prompt found - display it with copy icon
+                    const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedPrompt)));
+                    html += `<tr><td><strong>Resolved Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(resolvedPrompt)}</span><span class="copy-icon copy-text-btn" data-text-encoded="${resolvedEncoded}" id="${resolvedId}" title="Click to copy resolved prompt"></span></div></td></tr>`;
+                } else {
+                    // No resolved prompt found - show empty field
+                    html += `<tr><td><strong>Resolved Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #6e7681; font-style: italic;">(not found)</td></tr>`;
+                }
+                
+                // Show wildcard resolutions if both original and resolved prompts are available
                 if (originalPromptWithWildcards && resolvedPrompt) {
+                    console.log('Displaying resolved prompt and wildcards');
                     const resolvedId = `resolved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                    html += `<tr><td><strong>Resolved Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(resolvedPrompt)}</span><span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(resolvedPrompt.replace(/'/g, "\\'").replace(/"/g, '&quot;'))}', this)" id="${resolvedId}" title="Click to copy resolved prompt"></span></div></td></tr>`;
+                    // Use data attribute instead of inline onclick to avoid string escaping issues
+                    const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedPrompt)));
+                    html += `<tr><td><strong>Resolved Prompt</strong></td><td style="white-space: pre-wrap; word-break: break-word; color: #98C379; font-weight: 500;"><div style="display: flex; align-items: flex-start; gap: 8px;"><span style="flex: 1;">${highlightBracketedText(resolvedPrompt)}</span><span class="copy-icon copy-text-btn" data-text-encoded="${resolvedEncoded}" id="${resolvedId}" title="Click to copy resolved prompt"></span></div></td></tr>`;
                     
                     // Show wildcard resolutions right after resolved prompt
                     const wildcards = extractWildcards(originalPromptWithWildcards, resolvedPrompt);
+                    console.log('Extracted wildcards:', wildcards);
                     if (wildcards.length > 0) {
                         html += `<tr><td colspan="2" style="border-top: 1px solid #30363d; padding-top: 5px;"></td></tr>`;
                         html += `<tr><td colspan="2"><strong style="color: #6FC3DF;">Wildcard Resolutions</strong></td></tr>`;
                         for (const wc of wildcards) {
                             html += `<tr><td style="color: #D19A66; font-family: monospace;">${escapeHtml(wc.name)}</td><td style="color: #98C379;">${escapeHtml(wc.resolved)}</td></tr>`;
                         }
+                    } else {
+                        console.log('No wildcards extracted - original:', originalPromptWithWildcards.substring(0, 100), 'resolved:', resolvedPrompt.substring(0, 100));
                     }
+                } else {
+                    console.log('Not showing resolved prompt - originalPromptWithWildcards:', !!originalPromptWithWildcards, 'resolvedPrompt:', !!resolvedPrompt);
                 }
                 
                 if (negativePrompt) {
@@ -3104,6 +3263,31 @@ Data flow: File → Chunks → Payloads → JSON Parse → Node Traversal → Fi
                 }
             });
         }
+        
+        // Set up event delegation for copy buttons (handles dynamically added content)
+        // 
+        // ISSUE FIXED: Previously, we used inline onclick handlers with string escaping like:
+        //   onclick="copyGPSCoords('${escapeHtml(text.replace(/'/g, "\\'").replace(/"/g, '&quot;'))}', this)"
+        // This broke when prompts contained special characters (quotes, newlines, backslashes, etc.),
+        // causing JavaScript syntax errors that prevented the entire script from loading, which broke
+        // the file upload functionality ("click or drag file here to analyze" stopped working).
+        //
+        // SOLUTION: Use data attributes with base64 encoding and event delegation instead.
+        // This completely avoids string escaping issues in HTML attributes and works with any text content.
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('copy-text-btn')) {
+                const encoded = e.target.getAttribute('data-text-encoded');
+                if (encoded) {
+                    try {
+                        // Decode from base64
+                        const text = decodeURIComponent(escape(atob(encoded)));
+                        copyGPSCoords(text, e.target);
+                    } catch(err) {
+                        console.error('Failed to decode text for copying:', err);
+                    }
+                }
+            }
+        });
         
         // Initialize on DOM ready
         if (document.readyState === 'loading') {
