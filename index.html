@@ -434,15 +434,15 @@
     <div class="terminal-container">
         <div class="terminal-header">
             <div class="terminal-title-area">
-                <div class="terminal-title">🗀 BareBlocks - Metadata Inspector</div>
+                <div class="terminal-title">$ BareBlocks - Metadata Inspector</div>
                 <div class="thumbnail-container" id="thumbnailContainer">
                     <img id="thumbnailImage" alt="Thumbnail">
                 </div>
             </div>
             <div class="terminal-tabs">
-                <button class="tab-button active" onclick="switchTab('terminal')">📟 Terminal</button>
-                <button class="tab-button" onclick="switchTab('chunks')">🧩 Chunks</button>
-                <button class="tab-button" onclick="exportJSON()">💾 Export JSON</button>
+                <button class="tab-button active" onclick="switchTab('terminal')">Terminal</button>
+                <button class="tab-button" onclick="switchTab('chunks')">Chunks</button>
+                <button class="tab-button" onclick="exportJSON()">Export JSON</button>
             </div>
         </div>
         
@@ -450,7 +450,7 @@
             <!-- Terminal Tab -->
             <div id="terminal-tab" class="tab-content active">
                 <div class="upload-zone" id="uploadZone">
-                    <div class="upload-icon">🗀</div>
+                    <div class="upload-icon">[   ]</div>
                     <div>Click or drag file here to analyze</div>
                     <div class="info" style="margin-top: 10px; font-size: 11px;">
                         Supports: JPEG, PNG, TIFF, HEIC<br>
@@ -857,57 +857,247 @@
             return types[ext] || 'Unknown';
         }
         
+        // Extract wildcards and their resolutions
+        function extractWildcards(originalPrompt, resolvedPrompt) {
+            if (!originalPrompt || !resolvedPrompt) return [];
+            
+            const wildcards = [];
+            const wildcardPattern = /__.*?__/g;
+            const matches = [];
+            let match;
+            
+            // Reset regex lastIndex
+            wildcardPattern.lastIndex = 0;
+            
+            // Find all wildcard patterns
+            while ((match = wildcardPattern.exec(originalPrompt)) !== null) {
+                matches.push({
+                    pattern: match[0],
+                    index: match.index
+                });
+            }
+            
+            if (matches.length === 0) return [];
+            
+            // For each wildcard, find its resolved value
+            for (let i = 0; i < matches.length; i++) {
+                const wildcard = matches[i];
+                const beforeWildcard = originalPrompt.substring(0, wildcard.index);
+                const nextWildcard = matches[i + 1];
+                const afterWildcard = nextWildcard ? 
+                    originalPrompt.substring(wildcard.index + wildcard.pattern.length, nextWildcard.index) :
+                    originalPrompt.substring(wildcard.index + wildcard.pattern.length);
+                
+                // Find corresponding text in resolved prompt
+                const beforeIndex = resolvedPrompt.indexOf(beforeWildcard);
+                if (beforeIndex > -1) {
+                    const searchStart = beforeIndex + beforeWildcard.length;
+                    const afterIndex = afterWildcard ? resolvedPrompt.indexOf(afterWildcard, searchStart) : resolvedPrompt.length;
+                    
+                    if (afterIndex > -1) {
+                        const resolvedValue = resolvedPrompt.substring(searchStart, afterIndex).trim();
+                        if (resolvedValue && resolvedValue !== wildcard.pattern) {
+                            wildcards.push({
+                                name: wildcard.pattern,
+                                resolved: resolvedValue
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return wildcards;
+        }
+        
         // Display metadata in terminal
         function displayMetadata(metadata) {
-            let html = '<div class="output-line success">✓ Metadata extracted successfully</div>';
+            let html = '<div class="output-line success">Metadata extracted successfully</div>';
             
             // Provenance summary
             html += '<div class="provenance-summary">';
             if (metadata.provenance === 'camera') {
                 const camera = metadata.exif?.Make || 'Unknown';
                 const model = metadata.exif?.Model || '';
-                html += `📷 This image was taken by a camera: <strong>${camera} ${model}</strong><br>`;
+                html += `This image has metadata indicating it was taken by a camera.<br>`;
+                html += `<strong>Camera:</strong> ${escapeHtml(camera + ' ' + model)}<br>`;
             } else if (metadata.provenance === 'ai') {
                 const model = metadata.aiMetadata?.model || 'Unknown AI model';
-                html += `🤖 This image has AI metadata: <strong>${model}</strong><br>`;
+                html += `This image has AI metadata.<br>`;
+                html += `<strong>Model:</strong> ${escapeHtml(model)}<br>`;
             } else {
-                html += `❓ Not enough metadata to indicate provenance.<br>`;
+                html += `Not enough metadata to indicate provenance.<br>`;
             }
             
             if (metadata.gps) {
-                html += `📍 GPS: <span class="copy-icon" onclick="copyToClipboard('${metadata.gps.formatted}', this)">📋</span> ${metadata.gps.formatted}<br>`;
+                html += `<strong>GPS:</strong> <span class="copy-icon" onclick="copyToClipboard('${metadata.gps.formatted}', this)">[ ]</span> ${metadata.gps.formatted}<br>`;
             }
             
             html += `</div>`;
             
             // Summary section
-            html += '<div class="metadata-section"><div class="section-title category-structure">📊 Summary</div>';
+            html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
             html += '<table class="metadata-table"><tbody>';
-            html += `<tr><td>Container Type</td><td class="category-structure">${metadata.containerType}</td></tr>`;
-            html += `<tr><td>File Size (MB)</td><td class="category-structure">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</td></tr>`;
-            html += `<tr><td>File Name</td><td>${metadata.fileName}</td></tr>`;
-            html += `<tr><td>MIME Type</td><td>${metadata.mimeType}</td></tr>`;
+            html += `<tr><td>fileName</td><td>${escapeHtml(metadata.fileName)}</td></tr>`;
+            html += `<tr><td>containerType</td><td class="category-structure">${metadata.containerType}</td></tr>`;
+            html += `<tr><td>fileSize (b)</td><td class="category-structure">${metadata.fileSize.toLocaleString()}</td></tr>`;
+            html += `<tr><td>fileSize (MB)</td><td class="category-structure">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</td></tr>`;
+            
+            if (metadata.exif) {
+                const width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
+                const height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
+                if (width && height) {
+                    html += `<tr><td>Dimensions</td><td class="category-structure">${width} x ${height}</td></tr>`;
+                }
+            }
+            
             html += '</tbody></table></div>';
             
-            // EXIF section
-            if (metadata.exif) {
-                html += '<div class="metadata-section" id="section-exif"><div class="section-title category-metadata">📷 Declared Metadata (EXIF)</div>';
+            // Declared Metadata (EXIF) section
+            if (metadata.exif && Object.keys(metadata.exif).length > 0) {
+                html += '<div class="metadata-section" id="section-metadata"><div class="section-title category-metadata">Declared Metadata</div>';
                 html += '<table class="metadata-table"><tbody>';
+                
+                // Group by category
+                const categories = {
+                    'exif': {},
+                    'image_properties': {},
+                    'iptc': {},
+                    'xmp': {}
+                };
                 
                 for (const [key, value] of Object.entries(metadata.exif)) {
                     if (value !== null && value !== undefined) {
                         const displayKey = key.replace(/^(EXIF|GPS|Image|Interoperability)\s+/i, '');
+                        categories.exif[displayKey] = value;
+                    }
+                }
+                
+                // Display EXIF data
+                if (Object.keys(categories.exif).length > 0) {
+                    html += `<tr><td colspan="2" style="font-weight: bold; color: #FFA657; padding-top: 10px;">exif</td></tr>`;
+                    for (const [key, value] of Object.entries(categories.exif)) {
                         const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-                        html += `<tr><td>${displayKey}</td><td>${escapeHtml(displayValue)}</td></tr>`;
+                        html += `<tr><td style="padding-left: 20px;">${escapeHtml(key)}</td><td>${escapeHtml(displayValue)}</td></tr>`;
                     }
                 }
                 
                 html += '</tbody></table></div>';
             }
             
-            // AI Metadata section
-            if (metadata.aiMetadata && (metadata.aiMetadata.hasComfyUI || metadata.aiMetadata.model || metadata.aiMetadata.prompt)) {
-                html += '<div class="metadata-section" id="section-ai"><div class="section-title category-ai">🤖 Encryption and AI</div>';
+            // ComfyUI Workflow section
+            if (metadata.aiMetadata && metadata.aiMetadata.hasComfyUI) {
+                html += '<div class="metadata-section" id="section-comfyui"><div class="section-title category-ai">ComfyUI Workflow</div>';
+                html += '<table class="metadata-table"><tbody>';
+                
+                // Extract workflow details
+                const workflow = metadata.aiMetadata.workflow;
+                if (workflow) {
+                    // Extract model, sampler, steps, etc. from workflow
+                    let model = metadata.aiMetadata.model;
+                    let sampler = null;
+                    let steps = null;
+                    let cfgScale = null;
+                    let seed = null;
+                    let loras = [];
+                    
+                    // Parse workflow nodes
+                    const nodes = workflow.nodes || workflow;
+                    if (nodes && typeof nodes === 'object') {
+                        for (const [nodeId, node] of Object.entries(nodes)) {
+                            if (!node || typeof node !== 'object') continue;
+                            
+                            // Extract model
+                            if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
+                                if (node.inputs.unet_name) model = node.inputs.unet_name;
+                                if (node.inputs.ckpt_name) model = node.inputs.ckpt_name;
+                            }
+                            
+                            // Extract sampler
+                            if (node.class_type === 'KSampler' && node.inputs) {
+                                sampler = node.inputs.sampler_name || sampler;
+                                steps = node.inputs.steps || steps;
+                                cfgScale = node.inputs.cfg || cfgScale;
+                                seed = node.inputs.seed || seed;
+                            }
+                            
+                            // Extract LoRAs
+                            if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
+                                loras.push(node.inputs.lora_name);
+                            }
+                        }
+                    }
+                    
+                    if (model) html += `<tr><td>Model</td><td>${escapeHtml(model)}</td></tr>`;
+                    if (loras.length > 0) html += `<tr><td>LoRA</td><td>${escapeHtml(loras.join(', '))}</td></tr>`;
+                    if (sampler) html += `<tr><td>Sampler</td><td class="category-ai">${escapeHtml(sampler)}</td></tr>`;
+                    if (steps) html += `<tr><td>Steps</td><td class="category-ai">${steps}</td></tr>`;
+                    if (cfgScale) html += `<tr><td>CFG Scale</td><td>${cfgScale}</td></tr>`;
+                    if (seed) html += `<tr><td>Seed</td><td>${seed}</td></tr>`;
+                }
+                
+                // Display prompt with copy button
+                if (metadata.aiMetadata.prompt) {
+                    const promptEncoded = btoa(unescape(encodeURIComponent(metadata.aiMetadata.prompt)));
+                    html += `<tr><td>Prompt</td><td>${escapeHtml(metadata.aiMetadata.prompt)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}">[ ]</span></td></tr>`;
+                }
+                
+                // Check for wildcards and resolved prompt
+                const originalPrompt = metadata.aiMetadata.prompt;
+                let resolvedPrompt = null;
+                
+                // Look for resolved prompt in PNG text chunks
+                if (metadata.pngTextChunks) {
+                    for (const chunk of metadata.pngTextChunks) {
+                        const keyLower = chunk.keyword.toLowerCase();
+                        if (keyLower.includes('resolved') || keyLower === 'workflow') {
+                            // Check if it's a resolved version (no wildcards, similar length)
+                            if (!chunk.text.includes('__') && chunk.text.length >= (originalPrompt?.length || 0) * 0.7) {
+                                resolvedPrompt = chunk.text;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Extract and display wildcards
+                if (originalPrompt && originalPrompt.includes('__')) {
+                    const wildcardMatches = originalPrompt.match(/__.*?__/g);
+                    const wildcardCount = wildcardMatches ? wildcardMatches.length : 0;
+                    
+                    html += `<tr><td>Wildcards Used</td><td>${wildcardCount}</td></tr>`;
+                    html += `<tr><td>Wildcard result</td><td>${resolvedPrompt ? 'resolution saved' : 'resolution not saved'}</td></tr>`;
+                    
+                    // Display resolved prompt if available
+                    if (resolvedPrompt) {
+                        const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedPrompt)));
+                        html += `<tr><td>Resolved Prompt</td><td>${escapeHtml(resolvedPrompt)}<br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}">[ ]</span></td></tr>`;
+                        
+                        // Extract and display wildcard resolutions
+                        const wildcards = extractWildcards(originalPrompt, resolvedPrompt);
+                        if (wildcards.length > 0) {
+                            html += `<tr><td colspan="2" style="padding-top: 10px; font-weight: bold;">Wildcard Resolutions</td></tr>`;
+                            for (const wc of wildcards) {
+                                html += `<tr><td style="padding-left: 20px;">${escapeHtml(wc.name)}</td><td>${escapeHtml(wc.resolved)}</td></tr>`;
+                            }
+                        }
+                    }
+                } else {
+                    html += `<tr><td>Wildcards Used</td><td>0</td></tr>`;
+                }
+                
+                // Display nodes count if available
+                if (workflow && (workflow.nodes || workflow)) {
+                    const nodes = workflow.nodes || workflow;
+                    const nodeCount = Object.keys(nodes).length;
+                    html += `<tr><td>Nodes</td><td>${nodeCount} nodes</td></tr>`;
+                }
+                
+                html += '</tbody></table></div>';
+            }
+            
+            // Encryption and AI section (for non-ComfyUI AI metadata)
+            if (metadata.aiMetadata && !metadata.aiMetadata.hasComfyUI && (metadata.aiMetadata.model || metadata.aiMetadata.prompt)) {
+                html += '<div class="metadata-section" id="section-ai"><div class="section-title category-ai">Encryption and AI</div>';
                 html += '<table class="metadata-table"><tbody>';
                 
                 if (metadata.aiMetadata.model) {
@@ -915,11 +1105,8 @@
                 }
                 
                 if (metadata.aiMetadata.prompt) {
-                    html += `<tr><td>Prompt</td><td>${escapeHtml(metadata.aiMetadata.prompt)} <span class="copy-text-btn" data-text="${escapeHtml(metadata.aiMetadata.prompt)}">📋</span></td></tr>`;
-                }
-                
-                if (metadata.aiMetadata.wildcards && metadata.aiMetadata.wildcards.length > 0) {
-                    html += `<tr><td>Wildcards Used</td><td>${metadata.aiMetadata.wildcards.length}</td></tr>`;
+                    const promptEncoded = btoa(unescape(encodeURIComponent(metadata.aiMetadata.prompt)));
+                    html += `<tr><td>Prompt</td><td>${escapeHtml(metadata.aiMetadata.prompt)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}">[ ]</span></td></tr>`;
                 }
                 
                 html += '</tbody></table></div>';
@@ -1002,16 +1189,30 @@
         // Copy to clipboard
         function copyToClipboard(text, element) {
             navigator.clipboard.writeText(text).then(() => {
+                const originalText = element.textContent;
+                element.textContent = '[✓]';
                 element.classList.add('copied');
-                setTimeout(() => element.classList.remove('copied'), 2000);
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Copy failed:', err);
             });
         }
         
         // Copy button event delegation
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('copy-text-btn')) {
-                const text = e.target.getAttribute('data-text');
-                copyToClipboard(text, e.target);
+                const encoded = e.target.getAttribute('data-text-encoded');
+                if (encoded) {
+                    try {
+                        const text = decodeURIComponent(escape(atob(encoded)));
+                        copyToClipboard(text, e.target);
+                    } catch (err) {
+                        console.error('Failed to decode text:', err);
+                    }
+                }
             }
         });
         
@@ -1022,9 +1223,9 @@
             return div.innerHTML;
         }
         
-        console.log('🗀 BareBlocks - Client-side metadata inspector ready');
-        console.log('✅ All processing happens in your browser');
-        console.log('🔒 Files never leave your device');
+        console.log('$ BareBlocks - Client-side metadata inspector ready');
+        console.log('All processing happens in your browser');
+        console.log('Files never leave your device');
     </script>
 </body>
 </html>
