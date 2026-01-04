@@ -743,15 +743,31 @@
                         if (chunk.type === 'tEXt') {
                             text = decoder.decode(chunk.data.slice(nullIndex + 1));
                         } else if (chunk.type === 'iTXt') {
-                            // iTXt has: keyword, null, compression flag, compression method, null, language tag, null, translated keyword, null, text
-                            try {
-                                text = decoder.decode(chunk.data.slice(nullIndex + 1));
-                            } catch (e) {
-                                text = '(binary data)';
+                            // iTXt format: keyword, null, compression flag, compression method, language tag, null, translated keyword, null, text
+                            let offset = nullIndex + 1;
+                            // Skip compression flag (1 byte)
+                            offset += 1;
+                            // Skip compression method (1 byte)
+                            offset += 1;
+                            // Skip language tag (find next null)
+                            while (offset < chunk.data.length && chunk.data[offset] !== 0) {
+                                offset++;
                             }
+                            offset++; // Skip the null
+                            // Skip translated keyword (find next null)
+                            while (offset < chunk.data.length && chunk.data[offset] !== 0) {
+                                offset++;
+                            }
+                            offset++; // Skip the null
+                            // Now we have the actual text
+                            text = decoder.decode(chunk.data.slice(offset));
+                        } else if (chunk.type === 'zTXt') {
+                            // zTXt is compressed - for now, just try to decode
+                            text = decoder.decode(chunk.data.slice(nullIndex + 1));
                         }
                         
                         textChunks.push({ keyword, text, type: chunk.type });
+                        console.log('Extracted PNG text chunk:', keyword, '- length:', text.length);
                     } catch (e) {
                         console.warn('Error parsing text chunk:', e);
                     }
@@ -768,8 +784,15 @@
                 hasStableDiffusion: false,
                 model: null,
                 prompt: null,
+                negativePrompt: null,
+                resolvedPrompt: null,
                 workflow: null,
                 wildcards: [],
+                loras: [],
+                sampler: null,
+                steps: null,
+                cfgScale: null,
+                seed: null
             };
             
             // Check EXIF software tag
@@ -796,35 +819,111 @@
             
             // Check PNG text chunks for workflow
             if (metadata.pngTextChunks) {
+                let workflowData = null;
+                
                 for (const chunk of metadata.pngTextChunks) {
                     const keyLower = chunk.keyword.toLowerCase();
-                    const textLower = chunk.text.toLowerCase();
                     
-                    if (keyLower.includes('workflow') || keyLower.includes('comfy')) {
+                    console.log('Processing PNG chunk:', chunk.keyword);
+                    
+                    // Check for workflow JSON
+                    if (keyLower.includes('workflow') || keyLower === 'workflow') {
                         ai.hasComfyUI = true;
                         try {
-                            ai.workflow = JSON.parse(chunk.text);
+                            workflowData = JSON.parse(chunk.text);
+                            ai.workflow = workflowData;
+                            console.log('Parsed workflow JSON');
                         } catch (e) {
-                            // Not JSON
+                            console.log('Workflow chunk is not JSON');
                         }
                     }
                     
-                    if (keyLower.includes('prompt')) {
-                        ai.prompt = chunk.text;
-                        
-                        // Detect wildcards
-                        const wildcardMatches = chunk.text.match(/__[^_]+__/g);
-                        if (wildcardMatches) {
-                            ai.wildcards = wildcardMatches;
+                    // Check for prompt JSON (might be workflow nodes)
+                    if (keyLower === 'prompt') {
+                        try {
+                            const promptData = JSON.parse(chunk.text);
+                            if (promptData && typeof promptData === 'object') {
+                                // This might be workflow nodes
+                                if (!workflowData) {
+                                    workflowData = { nodes: promptData };
+                                    ai.workflow = workflowData;
+                                    ai.hasComfyUI = true;
+                                }
+                            }
+                        } catch (e) {
+                            // It's a text prompt
+                            if (!ai.prompt) {
+                                ai.prompt = chunk.text;
+                            }
                         }
                     }
                     
-                    if (!ai.model && (keyLower.includes('model') || keyLower.includes('checkpoint'))) {
-                        ai.model = chunk.text;
+                    // Check for resolved prompt
+                    if (keyLower.includes('resolved') || keyLower === 'prompt_resolved') {
+                        ai.resolvedPrompt = chunk.text;
+                    }
+                    
+                    // Check for negative prompt
+                    if (keyLower.includes('negative')) {
+                        ai.negativePrompt = chunk.text;
+                    }
+                }
+                
+                // Extract data from workflow
+                if (workflowData) {
+                    const nodes = workflowData.nodes || workflowData;
+                    if (nodes && typeof nodes === 'object') {
+                        for (const [nodeId, node] of Object.entries(nodes)) {
+                            if (!node || typeof node !== 'object') continue;
+                            
+                            // Extract model
+                            if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
+                                if (node.inputs.unet_name) ai.model = node.inputs.unet_name;
+                                if (node.inputs.ckpt_name) ai.model = node.inputs.ckpt_name;
+                            }
+                            
+                            // Extract sampler settings
+                            if (node.class_type === 'KSampler' && node.inputs) {
+                                ai.sampler = node.inputs.sampler_name || ai.sampler;
+                                ai.steps = node.inputs.steps || ai.steps;
+                                ai.cfgScale = node.inputs.cfg || ai.cfgScale;
+                                ai.seed = node.inputs.seed || ai.seed;
+                            }
+                            
+                            // Extract LoRAs
+                            if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
+                                if (!ai.loras.includes(node.inputs.lora_name)) {
+                                    ai.loras.push(node.inputs.lora_name);
+                                }
+                            }
+                            
+                            // Extract prompts from text encoding nodes
+                            if (node.class_type === 'CLIPTextEncode' && node.inputs && node.inputs.text) {
+                                if (typeof node.inputs.text === 'string' && node.inputs.text.length > 5) {
+                                    if (!ai.prompt && !node.inputs.text.toLowerCase().includes('negative')) {
+                                        ai.prompt = node.inputs.text;
+                                    }
+                                    if (!ai.negativePrompt && node.inputs.text.toLowerCase().includes('negative')) {
+                                        ai.negativePrompt = node.inputs.text;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Detect wildcards in prompt
+                if (ai.prompt) {
+                    const wildcardPattern = /__.*?__/g;
+                    const matches = ai.prompt.match(wildcardPattern);
+                    if (matches) {
+                        ai.wildcards = matches;
+                        console.log('Detected wildcards:', matches);
                     }
                 }
             }
             
+            console.log('AI metadata detected:', ai);
             return ai;
         }
         
@@ -1037,52 +1136,38 @@
                 
                 // Display prompt with copy button
                 if (metadata.aiMetadata.prompt) {
-                    const promptEncoded = btoa(unescape(encodeURIComponent(metadata.aiMetadata.prompt)));
-                    html += `<tr><td>Prompt</td><td>${escapeHtml(metadata.aiMetadata.prompt)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}">[ ]</span></td></tr>`;
+                    const promptText = unescapeUnicode(metadata.aiMetadata.prompt);
+                    const promptEncoded = btoa(unescape(encodeURIComponent(promptText)));
+                    html += `<tr><td>Prompt</td><td>${escapeHtml(promptText)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}">[ ]</span></td></tr>`;
                 }
                 
                 // Check for wildcards and resolved prompt
                 const originalPrompt = metadata.aiMetadata.prompt;
-                let resolvedPrompt = null;
+                const resolvedPrompt = metadata.aiMetadata.resolvedPrompt;
                 
-                // Look for resolved prompt in PNG text chunks
-                if (metadata.pngTextChunks) {
-                    for (const chunk of metadata.pngTextChunks) {
-                        const keyLower = chunk.keyword.toLowerCase();
-                        if (keyLower.includes('resolved') || keyLower === 'workflow') {
-                            // Check if it's a resolved version (no wildcards, similar length)
-                            if (!chunk.text.includes('__') && chunk.text.length >= (originalPrompt?.length || 0) * 0.7) {
-                                resolvedPrompt = chunk.text;
-                                break;
-                            }
-                        }
-                    }
-                }
+                // Count wildcards
+                const wildcardCount = metadata.aiMetadata.wildcards ? metadata.aiMetadata.wildcards.length : 0;
                 
-                // Extract and display wildcards
-                if (originalPrompt && originalPrompt.includes('__')) {
-                    const wildcardMatches = originalPrompt.match(/__.*?__/g);
-                    const wildcardCount = wildcardMatches ? wildcardMatches.length : 0;
+                html += `<tr><td>Wildcards Used</td><td>${wildcardCount}</td></tr>`;
+                html += `<tr><td>Wildcard result</td><td>${resolvedPrompt ? 'resolution saved' : 'resolution not saved'}</td></tr>`;
+                
+                // Display resolved prompt if available
+                if (resolvedPrompt) {
+                    const resolvedText = unescapeUnicode(resolvedPrompt);
+                    const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedText)));
+                    html += `<tr><td>Resolved Prompt</td><td>${escapeHtml(resolvedText)}<br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}">[ ]</span></td></tr>`;
                     
-                    html += `<tr><td>Wildcards Used</td><td>${wildcardCount}</td></tr>`;
-                    html += `<tr><td>Wildcard result</td><td>${resolvedPrompt ? 'resolution saved' : 'resolution not saved'}</td></tr>`;
-                    
-                    // Display resolved prompt if available
-                    if (resolvedPrompt) {
-                        const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedPrompt)));
-                        html += `<tr><td>Resolved Prompt</td><td>${escapeHtml(resolvedPrompt)}<br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}">[ ]</span></td></tr>`;
-                        
-                        // Extract and display wildcard resolutions
+                    // Extract and display wildcard resolutions
+                    if (originalPrompt && wildcardCount > 0) {
                         const wildcards = extractWildcards(originalPrompt, resolvedPrompt);
                         if (wildcards.length > 0) {
                             html += `<tr><td colspan="2" style="padding-top: 10px; font-weight: bold;">Wildcard Resolutions</td></tr>`;
                             for (const wc of wildcards) {
-                                html += `<tr><td style="padding-left: 20px;">${escapeHtml(wc.name)}</td><td>${escapeHtml(wc.resolved)}</td></tr>`;
+                                const wcResolved = unescapeUnicode(wc.resolved);
+                                html += `<tr><td style="padding-left: 20px;">${escapeHtml(wc.name)}</td><td>${escapeHtml(wcResolved)}</td></tr>`;
                             }
                         }
                     }
-                } else {
-                    html += `<tr><td>Wildcards Used</td><td>0</td></tr>`;
                 }
                 
                 // Display nodes count if available
@@ -1218,9 +1303,18 @@
         
         // Utility functions
         function escapeHtml(text) {
+            if (typeof text !== 'string') text = String(text);
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        function unescapeUnicode(text) {
+            if (typeof text !== 'string') return text;
+            // Decode Unicode escape sequences like \u00e8
+            return text.replace(/\\u[\dA-F]{4}/gi, match => {
+                return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
+            });
         }
         
         console.log('$ BareBlocks - Client-side metadata inspector ready');
