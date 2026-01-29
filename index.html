@@ -178,21 +178,25 @@
             cursor: pointer;
             margin-left: 8px;
             display: inline-block;
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: 3px;
             background: #21262d;
             border: 1px solid #30363d;
             font-size: 11px;
             transition: all 0.2s;
-            min-width: 32px;
-            min-height: 32px;
             text-align: center;
-            line-height: 28px;
+            font-weight: bold;
+            user-select: none;
         }
         
         .copy-icon:hover, .copy-text-btn:hover {
             background: #30363d;
             border-color: #6FC3DF;
+            transform: scale(1.05);
+        }
+        
+        .copy-icon:active, .copy-text-btn:active {
+            transform: scale(0.95);
         }
         
         .copy-icon.copied {
@@ -1429,26 +1433,66 @@
         function displayMetadata(metadata) {
             let html = '<div class="output-line success">Metadata extracted successfully</div>';
             
-            // Provenance summary
-            html += '<div class="provenance-summary">';
-            if (metadata.provenance === 'camera') {
-                const camera = metadata.exif?.Make || 'Unknown';
-                const model = metadata.exif?.Model || '';
-                html += `This image has metadata indicating it was taken by a camera.<br>`;
-                html += `<strong>Camera:</strong> ${escapeHtml(camera + ' ' + model)}<br>`;
-            } else if (metadata.provenance === 'ai') {
-                const model = metadata.aiMetadata?.model || 'Unknown AI model';
-                html += `This image has AI metadata.<br>`;
-                html += `<strong>Model:</strong> ${escapeHtml(model)}<br>`;
-            } else {
-                html += `Not enough metadata to indicate provenance.<br>`;
+            // Smart Summary - adapts based on what metadata is found
+            html += '<div class="metadata-section"><div class="section-title" style="color: #6FC3DF;">Smart Summary</div>';
+            html += '<table class="metadata-table"><tbody>';
+            
+            // Camera metadata
+            if (metadata.provenance === 'camera' && metadata.exif) {
+                if (metadata.exif.Make || metadata.exif.Model) {
+                    const camera = [metadata.exif.Make, metadata.exif.Model].filter(Boolean).join(' ');
+                    html += `<tr><td>Camera</td><td><span style="color: #FFA657; font-weight: bold;">${escapeHtml(camera)}</span></td></tr>`;
+                }
+                if (metadata.exif.LensModel) {
+                    html += `<tr><td>Lens</td><td>${escapeHtml(metadata.exif.LensModel)}</td></tr>`;
+                }
+                if (metadata.exif.FNumber) {
+                    html += `<tr><td>Aperture</td><td>f/${metadata.exif.FNumber}</td></tr>`;
+                }
+                if (metadata.exif.ExposureTime) {
+                    const exposure = metadata.exif.ExposureTime < 1 ? `1/${Math.round(1/metadata.exif.ExposureTime)}` : `${metadata.exif.ExposureTime}`;
+                    html += `<tr><td>Shutter Speed</td><td>${exposure}s</td></tr>`;
+                }
+                if (metadata.exif.ISO || metadata.exif.ISOSpeedRatings) {
+                    const iso = metadata.exif.ISO || metadata.exif.ISOSpeedRatings;
+                    html += `<tr><td>ISO</td><td>${iso}</td></tr>`;
+                }
+                if (metadata.exif.FocalLength) {
+                    html += `<tr><td>Focal Length</td><td>${metadata.exif.FocalLength}mm</td></tr>`;
+                }
             }
             
-            if (metadata.gps) {
-                html += `<strong>GPS:</strong> <span class="copy-icon" onclick="copyToClipboard('${metadata.gps.formatted}', this)">[ ]</span> ${metadata.gps.formatted}<br>`;
+            // AI metadata
+            if (metadata.aiMetadata && (metadata.aiMetadata.hasComfyUI || metadata.aiMetadata.hasStableDiffusion)) {
+                if (metadata.aiMetadata.model) {
+                    html += `<tr><td>AI Model</td><td><span style="color: #7EE787; font-weight: bold;">${escapeHtml(metadata.aiMetadata.model)}</span></td></tr>`;
+                }
+                if (metadata.aiMetadata.resolvedPrompt) {
+                    const resolvedShort = unescapeUnicode(metadata.aiMetadata.resolvedPrompt);
+                    const preview = resolvedShort.length > 150 ? resolvedShort.substring(0, 150) + '...' : resolvedShort;
+                    html += `<tr><td>Generated Image</td><td><span style="color: #7EE787;">${escapeHtml(preview)}</span></td></tr>`;
+                } else if (metadata.aiMetadata.prompt) {
+                    const promptShort = unescapeUnicode(metadata.aiMetadata.prompt);
+                    const preview = promptShort.length > 150 ? promptShort.substring(0, 150) + '...' : promptShort;
+                    html += `<tr><td>Prompt</td><td><span style="color: #7EE787;">${escapeHtml(preview)}</span></td></tr>`;
+                }
             }
             
-            html += `</div>`;
+            // GPS metadata
+            if (metadata.gps && metadata.gps.formatted) {
+                const gpsId = `gps-copy-${Date.now()}`;
+                html += `<tr><td>GPS Coordinates</td><td>`;
+                html += `<span style="color: #6FC3DF; font-weight: bold;">${escapeHtml(metadata.gps.formatted)}</span>`;
+                html += `<span class="copy-icon" onclick="copyGPSCoords('${escapeHtml(metadata.gps.formatted)}', this)" id="${gpsId}" style="margin-left: 10px; cursor: pointer; color: #6FC3DF;" title="Click to copy coordinates">[ Copy ]</span>`;
+                html += `</td></tr>`;
+            }
+            
+            // Generic fallback
+            if (!metadata.exif && !metadata.aiMetadata?.hasComfyUI && !metadata.gps) {
+                html += `<tr><td colspan="2" style="color: #8b949e;">Limited metadata available</td></tr>`;
+            }
+            
+            html += '</tbody></table></div>';
             
             // Data Recap section - MOVED TO TOP
             html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
@@ -1742,6 +1786,22 @@
                 }, 2000);
             }).catch(err => {
                 console.error('Copy failed:', err);
+            });
+        }
+        
+        // Copy GPS coordinates
+        function copyGPSCoords(coords, element) {
+            navigator.clipboard.writeText(coords).then(() => {
+                const originalText = element.textContent;
+                element.textContent = '[ ✓ ]';
+                element.style.color = '#3fb950';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.style.color = '#6FC3DF';
+                }, 2000);
+            }).catch(err => {
+                console.error('GPS copy failed:', err);
+                alert('Failed to copy coordinates');
             });
         }
         
