@@ -833,7 +833,7 @@
                             </div>
                             
                             <!-- Merge Button -->
-                            <button class="tab-button" id="merge-download-btn" onclick="downloadMergedImage()" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 14px; display: none;">
+                            <button class="tab-button" id="merge-download-btn" onclick="openOutputSizeModal()" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 14px; display: none;">
                                 ⬇ Merge & Download
                             </button>
                         </div>
@@ -889,6 +889,50 @@
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="closeTextModal(false)" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; font-size: 12px;">Cancel</button>
                 <button onclick="closeTextModal(true)" style="padding: 8px 16px; background: #238636; border: 1px solid #2ea043; border-radius: 4px; color: #fff; cursor: pointer; font-size: 12px; font-weight: bold;">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Output Size Modal -->
+    <div id="output-size-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: #161b22; border: 2px solid #6FC3DF; border-radius: 8px; padding: 25px; width: 500px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #6FC3DF; font-size: 16px;">📐 Output Size</h3>
+            
+            <!-- Current Dimensions -->
+            <div style="background: #0d1117; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #30363d;">
+                <div style="color: #8b949e; font-size: 11px; margin-bottom: 5px;">Current Output Size:</div>
+                <div id="output-size-current" style="color: #c9d1d9; font-size: 18px; font-weight: bold; font-family: monospace;"></div>
+                <div id="output-size-preview" style="color: #6FC3DF; font-size: 11px; margin-top: 5px;"></div>
+            </div>
+            
+            <!-- Scale Options -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; color: #8b949e; font-size: 12px;">Scale Factor:</label>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                    <button class="tab-button active" id="scale-100" onclick="setOutputScale(1.0)" style="font-size: 11px;">100% (1×)</button>
+                    <button class="tab-button" id="scale-75" onclick="setOutputScale(0.75)" style="font-size: 11px;">75%</button>
+                    <button class="tab-button" id="scale-50" onclick="setOutputScale(0.5)" style="font-size: 11px;">50%</button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                    <button class="tab-button" id="scale-25" onclick="setOutputScale(0.25)" style="font-size: 11px;">25%</button>
+                    <button class="tab-button" id="scale-custom" onclick="setOutputScale('custom')" style="font-size: 11px;">Custom</button>
+                </div>
+            </div>
+            
+            <!-- Custom Scale Input -->
+            <div id="custom-scale-input" style="display: none; margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Custom Scale: <span id="custom-scale-value">100</span>%</label>
+                <input type="range" id="custom-scale-slider" min="10" max="200" value="100" oninput="updateCustomScale(this.value)" style="width: 100%; margin-bottom: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <input type="number" id="custom-scale-number" min="10" max="200" value="100" onchange="updateCustomScale(this.value)" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px;">
+                    <span style="color: #8b949e; line-height: 32px;">%</span>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeOutputSizeModal()" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; font-size: 12px;">Cancel</button>
+                <button onclick="proceedWithDownload()" style="padding: 8px 16px; background: #238636; border: 1px solid #2ea043; border-radius: 4px; color: #fff; cursor: pointer; font-size: 12px; font-weight: bold;">Download</button>
             </div>
         </div>
     </div>
@@ -2360,6 +2404,7 @@
         let isDraggingModal = false;
         let modalOffsetX = 0;
         let modalOffsetY = 0;
+        let outputScale = 1.0; // Output scale factor (1.0 = 100%)
         
         // Generate metadata summary text for empty cells
         function generateMetadataSummary(metadata) {
@@ -2399,28 +2444,36 @@
                 }
             }
             
-            // PRIORITY 2: Camera/Lens Info
+            // PRIORITY 2: Camera/Lens Info (ONLY camera/lens, no file details)
             if (allExifData.Make || allExifData.Model || allExifData.LensModel) {
+                // Camera info
                 if (allExifData.Make || allExifData.Model) {
                     const camera = [allExifData.Make, allExifData.Model].filter(x => x).join(' ').trim();
                     if (camera) summary.push(`📷 ${camera}`);
                 }
+                
+                // Lens info
                 if (allExifData.LensModel) {
                     summary.push(`🔍 ${allExifData.LensModel}`);
                 }
                 
-                // Add aperture, shutter, ISO if available
+                // Shooting settings on one line
+                let settings = [];
                 if (allExifData.FNumber) {
-                    summary.push(`f/${allExifData.FNumber}`);
+                    settings.push(`f/${allExifData.FNumber}`);
                 }
                 if (allExifData.ExposureTime) {
                     const shutter = allExifData.ExposureTime < 1 ? 
                         `1/${Math.round(1/allExifData.ExposureTime)}s` : 
                         `${allExifData.ExposureTime}s`;
-                    summary.push(shutter);
+                    settings.push(shutter);
                 }
                 if (allExifData.ISO) {
-                    summary.push(`ISO ${allExifData.ISO}`);
+                    settings.push(`ISO ${allExifData.ISO}`);
+                }
+                
+                if (settings.length > 0) {
+                    summary.push(settings.join(' · '));
                 }
                 
                 return summary.join('\n');
@@ -3139,6 +3192,72 @@
             modalContent.style.transform = '';
         }
         
+        // Output Size Modal Functions
+        function openOutputSizeModal() {
+            if (mergeItems.length === 0) return;
+            
+            const dims = calculateMergeDimensions();
+            const modal = document.getElementById('output-size-modal');
+            
+            // Show current dimensions
+            document.getElementById('output-size-current').textContent = `${dims.width} × ${dims.height}px`;
+            
+            // Update preview based on current scale
+            updateOutputSizePreview();
+            
+            // Reset to 100% scale
+            outputScale = 1.0;
+            document.querySelectorAll('[id^="scale-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('scale-100').classList.add('active');
+            document.getElementById('custom-scale-input').style.display = 'none';
+            
+            modal.style.display = 'flex';
+        }
+        
+        function closeOutputSizeModal() {
+            document.getElementById('output-size-modal').style.display = 'none';
+        }
+        
+        function setOutputScale(scale) {
+            // Update button states
+            document.querySelectorAll('[id^="scale-"]').forEach(btn => btn.classList.remove('active'));
+            
+            if (scale === 'custom') {
+                document.getElementById('scale-custom').classList.add('active');
+                document.getElementById('custom-scale-input').style.display = 'block';
+                outputScale = parseFloat(document.getElementById('custom-scale-slider').value) / 100;
+            } else {
+                document.getElementById('scale-' + (scale * 100)).classList.add('active');
+                document.getElementById('custom-scale-input').style.display = 'none';
+                outputScale = scale;
+            }
+            
+            updateOutputSizePreview();
+        }
+        
+        function updateCustomScale(value) {
+            outputScale = parseFloat(value) / 100;
+            document.getElementById('custom-scale-value').textContent = value;
+            document.getElementById('custom-scale-slider').value = value;
+            document.getElementById('custom-scale-number').value = value;
+            updateOutputSizePreview();
+        }
+        
+        function updateOutputSizePreview() {
+            const dims = calculateMergeDimensions();
+            const scaledWidth = Math.round(dims.width * outputScale);
+            const scaledHeight = Math.round(dims.height * outputScale);
+            const scaledSize = Math.round((scaledWidth * scaledHeight * 4) / (1024 * 1024)); // Rough MB estimate
+            
+            document.getElementById('output-size-preview').textContent = 
+                `Scaled: ${scaledWidth} × ${scaledHeight}px (~${scaledSize}MB)`;
+        }
+        
+        function proceedWithDownload() {
+            closeOutputSizeModal();
+            downloadMergedImage();
+        }
+        
         // Setup modal dragging globally
         document.addEventListener('mousemove', function(e) {
             if (isDraggingModal) {
@@ -3168,10 +3287,12 @@
             
             // Calculate canvas dimensions using shared function
             const dims = calculateMergeDimensions();
-            const canvasWidth = dims.width;
-            const canvasHeight = dims.height;
-            const cellWidth = dims.cellWidth;
-            const cellHeight = dims.cellHeight;
+            
+            // Apply output scale
+            const canvasWidth = Math.round(dims.width * outputScale);
+            const canvasHeight = Math.round(dims.height * outputScale);
+            const cellWidth = Math.round(dims.cellWidth * outputScale);
+            const cellHeight = Math.round(dims.cellHeight * outputScale);
             
             // Create canvas
             const canvas = document.createElement('canvas');
