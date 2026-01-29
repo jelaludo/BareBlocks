@@ -219,6 +219,27 @@
             margin-bottom: 6px;
             padding-bottom: 4px;
             border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-collapse-icon {
+            display: none;
+            font-size: 14px;
+            color: #6FC3DF;
+            user-select: none;
+            margin-left: 10px;
+        }
+        
+        .section-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            overflow: hidden;
+        }
+        
+        .section-content.collapsed {
+            max-height: 0 !important;
+            opacity: 0;
         }
         
         .metadata-table {
@@ -405,6 +426,7 @@
         }
         
         /* Mobile responsive */
+        /* Tablet and below (768px) */
         @media (max-width: 768px) {
             .terminal-container {
                 min-height: 100vh;
@@ -413,44 +435,132 @@
             .terminal-header {
                 flex-direction: column;
                 align-items: stretch;
+                padding: 12px 15px;
             }
             
             .terminal-tabs {
                 width: 100%;
-                flex-direction: column;
+                flex-direction: row;
+                justify-content: space-between;
             }
             
             .tab-button {
-                padding: 12px 20px;
-                font-size: 14px;
+                padding: 10px 15px;
+                font-size: 13px;
                 min-height: 44px;
-                width: 100%;
+                flex: 1;
+            }
+            
+            .terminal-content {
+                padding: 15px;
             }
             
             .upload-zone {
                 padding: 40px 20px;
-                min-height: 200px;
+                min-height: 180px;
+            }
+            
+            .metadata-section {
+                margin: 12px 0;
+                padding: 12px;
+            }
+            
+            .section-title {
+                font-size: 14px;
+                padding: 8px 10px;
+                cursor: pointer;
+                user-select: none;
+                background: #0d1117;
+                border-radius: 4px;
+                transition: background 0.2s;
+            }
+            
+            .section-title:active {
+                background: #21262d;
+            }
+            
+            .section-collapse-icon {
+                display: inline-block;
+            }
+            
+            /* Make expandable rows easier to tap */
+            .expandable {
+                min-height: 44px;
+            }
+            
+            .toggle {
+                font-size: 16px;
+                min-width: 24px;
+                padding: 5px;
             }
             
             .metadata-table td:first-child {
-                width: 40%;
+                width: 45%;
+                font-size: 12px;
+            }
+            
+            .metadata-table td:last-child {
+                font-size: 12px;
             }
             
             .copy-icon, .copy-text-btn {
                 min-width: 44px;
-                min-height: 44px;
-                padding: 8px;
+                min-height: 36px;
+                padding: 6px 10px;
+                font-size: 11px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
             }
             
             .thumbnail-container img {
                 max-width: 60px;
                 max-height: 50px;
             }
+            
+            /* Better spacing for recap items */
+            .recap-item {
+                padding: 8px;
+                margin: 6px 0;
+            }
+            
+            .provenance-summary {
+                padding: 12px;
+                margin: 8px 0;
+            }
         }
         
+        /* Mobile devices (480px and below) */
         @media (max-width: 480px) {
             body {
                 font-size: 12px;
+            }
+            
+            .terminal-header {
+                padding: 10px;
+            }
+            
+            .terminal-content {
+                padding: 10px;
+            }
+            
+            .terminal-title {
+                font-size: 12px;
+            }
+            
+            .tab-button {
+                font-size: 11px;
+                padding: 8px 10px;
+            }
+            
+            .metadata-section {
+                padding: 10px;
+                margin: 10px 0;
+            }
+            
+            .section-title {
+                font-size: 13px;
+                padding: 6px 8px;
             }
             
             .metadata-table {
@@ -458,11 +568,68 @@
             }
             
             .metadata-table td {
-                padding: 6px;
+                padding: 6px 4px;
             }
             
-            .section-title {
-                font-size: 14px;
+            .metadata-table td:first-child {
+                width: 50%;
+            }
+            
+            /* Stack layout for very small screens on key metadata */
+            .provenance-summary table td,
+            .data-recap table td {
+                display: block;
+                width: 100% !important;
+            }
+            
+            .provenance-summary table td:first-child {
+                font-weight: bold;
+                padding-bottom: 2px;
+                border-bottom: none;
+            }
+            
+            .provenance-summary table td:last-child {
+                padding-top: 2px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #21262d;
+            }
+            
+            .recap-item {
+                padding: 6px;
+                font-size: 11px;
+            }
+            
+            .upload-zone {
+                padding: 30px 15px;
+                min-height: 150px;
+            }
+            
+            .upload-icon {
+                font-size: 36px;
+                margin-bottom: 15px;
+            }
+        }
+        
+        /* Very small mobile (360px and below) */
+        @media (max-width: 360px) {
+            .terminal-tabs {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .tab-button {
+                width: 100%;
+                min-height: 40px;
+            }
+            
+            .metadata-table td:first-child {
+                width: 55%;
+            }
+            
+            .copy-icon, .copy-text-btn {
+                margin-left: 4px;
+                margin-top: 4px;
+                display: block;
             }
         }
         
@@ -1289,6 +1456,38 @@
                     toggle.textContent = '+';
                 }
             }
+        }
+        
+        // Toggle section collapse/expand (mobile feature)
+        function toggleSection(element) {
+            // Only work on mobile (768px and below)
+            if (window.innerWidth > 768) return;
+            
+            const section = element.closest('.metadata-section');
+            const content = section.querySelector('.section-content');
+            const icon = element.querySelector('.section-collapse-icon');
+            
+            if (content) {
+                content.classList.toggle('collapsed');
+                if (icon) {
+                    icon.textContent = content.classList.contains('collapsed') ? '▼' : '▲';
+                }
+            }
+        }
+        
+        // Helper to create section wrapper with collapse functionality
+        function createSectionHTML(title, content, categoryClass = '', sectionId = '') {
+            const idAttr = sectionId ? ` id="${sectionId}"` : '';
+            const titleClass = categoryClass ? `section-title ${categoryClass}` : 'section-title';
+            
+            let html = `<div class="metadata-section"${idAttr}>`;
+            html += `<div class="${titleClass}" onclick="toggleSection(this)">`;
+            html += `<span>${title}</span>`;
+            html += `<span class="section-collapse-icon">▲</span>`;
+            html += `</div>`;
+            html += `<div class="section-content">${content}</div>`;
+            html += `</div>`;
+            return html;
         }
         
         // Create metadata table with expandable rows
