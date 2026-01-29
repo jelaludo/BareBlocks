@@ -1080,10 +1080,15 @@
                     console.log('  Workflow structure:', typeof nodes, 'Node count:', Object.keys(nodes).length);
                     
                     if (nodes && typeof nodes === 'object') {
+                        let nodeCount = 0;
                         for (const [nodeId, node] of Object.entries(nodes)) {
                             if (!node || typeof node !== 'object') continue;
                             
-                            console.log('  Node', nodeId, '- class_type:', node.class_type);
+                            if (nodeCount < 2) { // Log first 2 nodes fully
+                                console.log('  Node', nodeId, 'FULL OBJECT:', JSON.stringify(node, null, 2).substring(0, 500));
+                            }
+                            console.log('  Node', nodeId, '- class_type:', node.class_type, '- keys:', Object.keys(node).join(', '));
+                            nodeCount++;
                             if (!node || typeof node !== 'object') continue;
                             
                             // Extract model
