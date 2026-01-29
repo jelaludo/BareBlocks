@@ -1447,13 +1447,19 @@
             html += `<tr><td>containerType</td><td><span style="color: #FF6AC1; font-weight: bold;">${metadata.containerType}</span></td></tr>`;
             html += `<tr><td>fileSize (MB)</td><td><span style="color: #FF6AC1; font-weight: bold;">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</span></td></tr>`;
             
-            // Dimensions - ALWAYS show
-            let width = null;
-            let height = null;
+            // Flatten EXIF data for easier access
+            let allExifData = {};
             if (metadata.exif) {
-                width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
-                height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
+                allExifData = { ...metadata.exif };
+                if (metadata.exif.ifd0) Object.assign(allExifData, metadata.exif.ifd0);
+                if (metadata.exif.exif) Object.assign(allExifData, metadata.exif.exif);
+                if (metadata.exif.gps) Object.assign(allExifData, metadata.exif.gps);
             }
+            
+            // Dimensions - ALWAYS show
+            let width = allExifData.ImageWidth || allExifData.PixelXDimension || allExifData['Image ImageWidth'] || null;
+            let height = allExifData.ImageLength || allExifData.PixelYDimension || allExifData['Image ImageLength'] || null;
+            
             if (width && height) {
                 html += `<tr><td>Dimensions</td><td>${width} x ${height}</td></tr>`;
             }
@@ -1461,10 +1467,10 @@
             // Date Created - ALWAYS show if available
             if (metadata.exif) {
                 // Check multiple date fields in order of preference
-                let dateCreated = metadata.exif.DateTime || 
-                                 metadata.exif.DateTimeOriginal || 
-                                 metadata.exif.CreateDate ||
-                                 metadata.exif['306'] || // IFD0 DateTime tag
+                let dateCreated = allExifData.DateTime || 
+                                 allExifData.DateTimeOriginal || 
+                                 allExifData.CreateDate ||
+                                 allExifData['306'] || // IFD0 DateTime tag
                                  null;
                 
                 if (dateCreated) {
@@ -1493,40 +1499,50 @@
             
             // Camera metadata - show if ANY camera data is found (not just if provenance is camera)
             if (metadata.exif) {
-                // Camera Model (check multiple fields including IFD0 tag 272)
-                const cameraModel = metadata.exif.Model || metadata.exif['272'] || null;
-                const cameraMake = metadata.exif.Make || null;
+                console.log('=== Camera/Lens Detection ===');
+                console.log('Flattened EXIF data keys:', Object.keys(allExifData));
+                console.log('Model:', allExifData.Model);
+                console.log('Make:', allExifData.Make);
+                console.log('LensModel:', allExifData.LensModel);
+                console.log('Tag 272:', allExifData['272']);
+                console.log('Tag 42036:', allExifData['42036']);
+                
+                // Camera Model (check multiple fields)
+                const cameraModel = allExifData.Model || allExifData['272'] || null;
+                const cameraMake = allExifData.Make || null;
                 
                 if (cameraModel || cameraMake) {
                     const camera = [cameraMake, cameraModel].filter(Boolean).join(' ');
                     html += `<tr><td>Camera</td><td><span style="color: #FFA657; font-weight: bold;">${escapeHtml(camera)}</span></td></tr>`;
+                    console.log('✓ Displaying camera:', camera);
                 }
                 
                 // Lens Model (check EXIF tag 42036 and other fields)
-                const lensModel = metadata.exif.LensModel || 
-                                 metadata.exif['42036'] || 
-                                 metadata.exif.LensInfo ||
+                const lensModel = allExifData.LensModel || 
+                                 allExifData['42036'] || 
+                                 allExifData.LensInfo ||
                                  null;
                 
                 if (lensModel) {
                     html += `<tr><td>Lens</td><td>${escapeHtml(String(lensModel))}</td></tr>`;
+                    console.log('✓ Displaying lens:', lensModel);
                 }
                 
                 // Only show detailed camera settings if we have camera data
                 if (cameraModel || cameraMake || lensModel) {
-                    if (metadata.exif.FNumber) {
-                        html += `<tr><td>Aperture</td><td>f/${metadata.exif.FNumber}</td></tr>`;
+                    if (allExifData.FNumber) {
+                        html += `<tr><td>Aperture</td><td>f/${allExifData.FNumber}</td></tr>`;
                     }
-                    if (metadata.exif.ExposureTime) {
-                        const exposure = metadata.exif.ExposureTime < 1 ? `1/${Math.round(1/metadata.exif.ExposureTime)}` : `${metadata.exif.ExposureTime}`;
+                    if (allExifData.ExposureTime) {
+                        const exposure = allExifData.ExposureTime < 1 ? `1/${Math.round(1/allExifData.ExposureTime)}` : `${allExifData.ExposureTime}`;
                         html += `<tr><td>Shutter Speed</td><td>${exposure}s</td></tr>`;
                     }
-                    if (metadata.exif.ISO || metadata.exif.ISOSpeedRatings) {
-                        const iso = metadata.exif.ISO || metadata.exif.ISOSpeedRatings;
+                    if (allExifData.ISO || allExifData.ISOSpeedRatings) {
+                        const iso = allExifData.ISO || allExifData.ISOSpeedRatings;
                         html += `<tr><td>ISO</td><td>${iso}</td></tr>`;
                     }
-                    if (metadata.exif.FocalLength) {
-                        html += `<tr><td>Focal Length</td><td>${metadata.exif.FocalLength}mm</td></tr>`;
+                    if (allExifData.FocalLength) {
+                        html += `<tr><td>Focal Length</td><td>${allExifData.FocalLength}mm</td></tr>`;
                     }
                 }
             }
