@@ -1450,39 +1450,35 @@
             
             html += `</div>`;
             
+            // Data Recap section - MOVED TO TOP
+            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
+            html += createDataRecap(metadata);
+            html += '</div>';
+            
             // Summary section
             html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
             const summaryData = {
-                fileName: metadata.fileName,
-                containerType: metadata.containerType,
-                'fileSize (b)': metadata.fileSize,
-                'fileSize (MB)': (metadata.fileSize / 1024 / 1024).toFixed(2)
+                fileName: metadata.fileName
             };
             
+            // Get dimensions
+            let width = null;
+            let height = null;
             if (metadata.exif) {
-                const width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
-                const height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
-                if (width && height) {
-                    summaryData.Dimensions = `${width} x ${height}`;
-                }
+                width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
+                height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
             }
             
-            html += createMetadataTableHTML(summaryData, 'summary');
-            html += '</div>';
-            
-            // Structure section
-            if (metadata.structure) {
-                html += '<div class="metadata-section" id="section-structure"><div class="section-title category-structure">Structure</div>';
-                html += createMetadataTableHTML(metadata.structure, 'structure');
-                html += '</div>';
+            // Build summary with special highlighting
+            html += '<table class="metadata-table"><tbody>';
+            html += `<tr><td>fileName</td><td>${escapeHtml(metadata.fileName)}</td></tr>`;
+            html += `<tr><td>containerType</td><td><span style="color: #FF6AC1; font-weight: bold;">${metadata.containerType}</span></td></tr>`;
+            html += `<tr><td>fileSize (b)</td><td>${metadata.fileSize.toLocaleString()}</td></tr>`;
+            html += `<tr><td>fileSize (MB)</td><td><span style="color: #FF6AC1; font-weight: bold;">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</span></td></tr>`;
+            if (width && height) {
+                html += `<tr><td>Resolution</td><td><span style="color: #FF6AC1; font-weight: bold;">${width} x ${height}</span></td></tr>`;
             }
-            
-            // Declared Metadata (EXIF) section - use expandable rows
-            if (metadata.exif && Object.keys(metadata.exif).length > 0) {
-                html += '<div class="metadata-section" id="section-metadata"><div class="section-title category-metadata">Declared Metadata</div>';
-                html += createMetadataTableHTML({ exif: metadata.exif }, 'metadata');
-                html += '</div>';
-            }
+            html += '</tbody></table></div>';
             
             // ComfyUI Workflow section
             if (metadata.aiMetadata && metadata.aiMetadata.hasComfyUI) {
@@ -1519,11 +1515,11 @@
                 if (cfgScale) html += `<tr><td>CFG Scale</td><td>${cfgScale}</td></tr>`;
                 if (seed) html += `<tr><td>Seed</td><td>${seed}</td></tr>`;
                 
-                // Display prompt with copy button
+                // Display prompt with copy button - HIGHLIGHTED IN GREEN
                 if (metadata.aiMetadata.prompt) {
                     const promptText = unescapeUnicode(metadata.aiMetadata.prompt);
                     const promptEncoded = btoa(unescape(encodeURIComponent(promptText)));
-                    html += `<tr><td>Prompt</td><td>${escapeHtml(promptText)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
+                    html += `<tr><td>Prompt</td><td><span style="color: #7EE787;">${escapeHtml(promptText)}</span><br><span class="copy-text-btn" data-text-encoded="${promptEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
                 }
                 
                 // Count wildcards
@@ -1533,11 +1529,11 @@
                 const resolvedPrompt = metadata.aiMetadata.resolvedPrompt;
                 html += `<tr><td>Wildcard result</td><td>${resolvedPrompt ? 'resolution saved' : 'resolution not saved'}</td></tr>`;
                 
-                // Display resolved prompt if available
+                // Display resolved prompt if available - HIGHLIGHTED IN GREEN
                 if (resolvedPrompt) {
                     const resolvedText = unescapeUnicode(resolvedPrompt);
                     const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedText)));
-                    html += `<tr><td>Resolved Prompt</td><td>${escapeHtml(resolvedText)}<br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
+                    html += `<tr><td>Resolved Prompt</td><td><span style="color: #7EE787;">${escapeHtml(resolvedText)}</span><br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
                     
                     // Extract and display wildcard resolutions
                     if (metadata.aiMetadata.prompt && wildcardCount > 0) {
@@ -1584,17 +1580,26 @@
                 html += '</div>';
             }
             
+            // Structure section - MOVED DOWN
+            if (metadata.structure) {
+                html += '<div class="metadata-section" id="section-structure"><div class="section-title category-structure">Structure</div>';
+                html += createMetadataTableHTML(metadata.structure, 'structure');
+                html += '</div>';
+            }
+            
+            // Declared Metadata (EXIF) section - MOVED DOWN
+            if (metadata.exif && Object.keys(metadata.exif).length > 0) {
+                html += '<div class="metadata-section" id="section-metadata"><div class="section-title category-metadata">Declared Metadata</div>';
+                html += createMetadataTableHTML({ exif: metadata.exif }, 'metadata');
+                html += '</div>';
+            }
+            
             // Anomalies section
             if (metadata.anomalies) {
                 html += '<div class="metadata-section" id="section-anomalies"><div class="section-title category-anomaly">Anomalies</div>';
                 html += createMetadataTableHTML(metadata.anomalies, 'anomaly');
                 html += '</div>';
             }
-            
-            // Data Recap section
-            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
-            html += createDataRecap(metadata);
-            html += '</div>';
             
             // Bottom raw data display
             html += '<div class="metadata-section"><div class="section-title">Full Object Display</div>';
