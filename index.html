@@ -2524,8 +2524,18 @@
         
         // Initialize default button states
         function initializeMergerDefaults() {
+            console.log('Initializing merger defaults: Grid + Contain');
+            
+            // Ensure default values are set
+            mergeDirection = 'grid';
+            imageFit = 'contain';
+            gridColumns = 2;
+            
             // Set default active states for buttons
+            document.querySelectorAll('[id^="merge-"]').forEach(btn => btn.classList.remove('active'));
             document.getElementById('merge-grid')?.classList.add('active');
+            
+            document.querySelectorAll('[id^="fit-"]').forEach(btn => btn.classList.remove('active'));
             document.getElementById('fit-contain')?.classList.add('active');
             
             // Set default description
@@ -2533,6 +2543,8 @@
             
             // Show grid columns by default (since grid is default)
             document.getElementById('grid-columns-container').style.display = 'block';
+            document.getElementById('grid-columns-value').textContent = '2';
+            document.getElementById('grid-columns-slider').value = '2';
         }
         
         // Setup merge upload zone (preview container)
@@ -2605,6 +2617,8 @@
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
+                        const isFirstImage = mergeItems.length === 0;
+                        
                         mergeItems.push({
                             type: 'image',
                             file: file,
@@ -2622,6 +2636,12 @@
                                 opacity: 1.0
                             }
                         });
+                        
+                        // Reinitialize defaults on first image to ensure they're active
+                        if (isFirstImage) {
+                            initializeMergerDefaults();
+                        }
+                        
                         updateMergeUI();
                     };
                     img.src = e.target.result;
