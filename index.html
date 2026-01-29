@@ -709,15 +709,14 @@
                 </div>
             </div>
             <div class="terminal-tabs">
-                <button class="tab-button active" onclick="switchTab('terminal')">Terminal</button>
-                <button class="tab-button" onclick="switchTab('chunks')">Chunks</button>
-                <button class="tab-button" onclick="exportJSON()">Export JSON</button>
+                <button class="tab-button active" onclick="switchTab('metadata')">Metadata</button>
+                <button class="tab-button" onclick="switchTab('imagetools')">Image Tools</button>
             </div>
         </div>
         
         <div class="terminal-content">
-            <!-- Terminal Tab -->
-            <div id="terminal-tab" class="tab-content active">
+            <!-- Metadata Tab -->
+            <div id="metadata-tab" class="tab-content active">
                 <div class="upload-zone" id="uploadZone">
                     <div class="upload-icon">[   ]</div>
                     <div>Click or drag file here to analyze</div>
@@ -730,12 +729,77 @@
                 <div id="output"></div>
             </div>
             
-            <!-- Chunks Tab -->
-            <div id="chunks-tab" class="tab-content">
-                <div class="chunks-container">
-                    <h2 class="section-title category-structure">File Structure Visualization</h2>
-                    <div id="chunksVisualization">
-                        <p class="info">Upload a file to see its structure</p>
+            <!-- Image Tools Tab -->
+            <div id="imagetools-tab" class="tab-content">
+                <div style="max-width: 1400px; margin: 0 auto;">
+                    <h2 class="section-title category-ai" style="margin-bottom: 20px;">Image Merger</h2>
+                    <p class="info" style="margin-bottom: 20px;">Merge multiple images into a single one. Everything happening client-side.</p>
+                    
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <!-- Left Panel: Settings -->
+                        <div style="flex: 0 0 300px; min-width: 250px;">
+                            <div class="metadata-section">
+                                <div class="section-title">Settings</div>
+                                
+                                <div style="padding: 15px;">
+                                    <!-- Merge Direction -->
+                                    <div style="margin-bottom: 20px;">
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Merge Direction</label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button class="tab-button" id="merge-horizontal" onclick="setMergeDirection('horizontal')" style="flex: 1; font-size: 11px;">→ Horizontal</button>
+                                            <button class="tab-button" id="merge-vertical" onclick="setMergeDirection('vertical')" style="flex: 1; font-size: 11px;">↓ Vertical</button>
+                                            <button class="tab-button active" id="merge-grid" onclick="setMergeDirection('grid')" style="flex: 1; font-size: 11px;">⊞ Grid</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Grid Columns (only for grid mode) -->
+                                    <div id="grid-columns-container" style="margin-bottom: 20px;">
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Grid Columns: <span id="grid-columns-value">2</span></label>
+                                        <input type="range" id="grid-columns" min="1" max="6" value="2" style="width: 100%;" onchange="updateGridColumns(this.value)">
+                                    </div>
+                                    
+                                    <!-- Image Fit -->
+                                    <div style="margin-bottom: 20px;">
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Image Fit</label>
+                                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                            <button class="tab-button" id="fit-cover" onclick="setImageFit('cover')" style="flex: 1; font-size: 10px;">Cover</button>
+                                            <button class="tab-button active" id="fit-contain" onclick="setImageFit('contain')" style="flex: 1; font-size: 10px;">Contain</button>
+                                            <button class="tab-button" id="fit-fill" onclick="setImageFit('fill')" style="flex: 1; font-size: 10px;">Fill</button>
+                                            <button class="tab-button" id="fit-scale" onclick="setImageFit('scale')" style="flex: 1; font-size: 10px;">Scale Down</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Upload Zone -->
+                            <div class="upload-zone" id="mergeUploadZone" style="margin-top: 15px; min-height: 150px;">
+                                <div class="upload-icon">[   ]</div>
+                                <div>Click or drag files here to merge</div>
+                                <div class="info" style="margin-top: 10px; font-size: 11px;">
+                                    Supports: JPEG, PNG, TIFF, HEIC<br>
+                                    All processing happens in your browser
+                                </div>
+                            </div>
+                            <input type="file" id="mergeFileInput" accept="image/*" multiple style="display: none;">
+                            
+                            <!-- Selected Images List -->
+                            <div id="selected-images-list" style="margin-top: 15px;"></div>
+                        </div>
+                        
+                        <!-- Right Panel: Preview -->
+                        <div style="flex: 1; min-width: 400px;">
+                            <div class="metadata-section" style="min-height: 500px;">
+                                <div class="section-title">Preview Area</div>
+                                <div id="merge-preview" style="padding: 20px; text-align: center; min-height: 450px; display: flex; align-items: center; justify-content: center;">
+                                    <p class="info">Add images to see preview</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Merge Button -->
+                            <button class="tab-button" id="merge-download-btn" onclick="downloadMergedImage()" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 14px; display: none;">
+                                ⬇ Merge & Download
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -760,6 +824,11 @@
             
             document.getElementById(tabName + '-tab').classList.add('active');
             event.target.classList.add('active');
+            
+            // Reset image merger if switching away
+            if (tabName !== 'imagetools') {
+                // Keep merger state
+            }
         }
         
         // File upload handling
@@ -1700,7 +1769,7 @@
         
         // Display metadata in terminal
         function displayMetadata(metadata) {
-            let html = '<div class="output-line success">Metadata extracted successfully</div>';
+            let html = '<div class="output-line success">Metadata extracted successfully <span class="copy-text-btn" onclick="exportJSON()" style="cursor:pointer; color:#6FC3DF; margin-left: 15px;">[ Export JSON ]</span></div>';
             
             // Data Recap section - at the very top
             html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
@@ -1978,7 +2047,17 @@
             }, 'payload');
             html += '</div>';
             
+            // File Structure Visualization (Chunks) - at the very bottom
+            html += '<div class="metadata-section" style="margin-top: 20px;"><div class="section-title category-structure">File Structure Visualization</div>';
+            html += '<div id="chunksVisualizationInline"></div>';
+            html += '</div>';
+            
             output.innerHTML = html;
+            
+            // Populate chunks visualization if available
+            if (metadata.chunks && currentFile) {
+                updateChunksVisualization(metadata.chunks, currentFile);
+            }
         }
         
         // Create Data Recap section
@@ -2027,7 +2106,8 @@
         function updateChunksVisualization(chunks, file) {
             if (!chunks || chunks.length === 0) return;
             
-            const container = document.getElementById('chunksVisualization');
+            // Update inline visualization in metadata tab
+            const container = document.getElementById('chunksVisualizationInline');
             let html = '';
             
             // Heatmap
@@ -2159,6 +2239,243 @@
         console.log('$ BareBlocks - Client-side metadata inspector ready');
         console.log('All processing happens in your browser');
         console.log('Files never leave your device');
+        
+        // ========================================
+        // IMAGE MERGER FUNCTIONALITY
+        // ========================================
+        
+        let mergeImages = [];
+        let mergeDirection = 'grid';
+        let imageFit = 'contain';
+        let gridColumns = 2;
+        
+        // Setup merge upload zone
+        const mergeUploadZone = document.getElementById('mergeUploadZone');
+        const mergeFileInput = document.getElementById('mergeFileInput');
+        
+        if (mergeUploadZone && mergeFileInput) {
+            mergeUploadZone.addEventListener('click', () => mergeFileInput.click());
+            
+            mergeUploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                mergeUploadZone.classList.add('drag-over');
+            });
+            
+            mergeUploadZone.addEventListener('dragleave', () => {
+                mergeUploadZone.classList.remove('drag-over');
+            });
+            
+            mergeUploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                mergeUploadZone.classList.remove('drag-over');
+                handleMergeFiles(e.dataTransfer.files);
+            });
+            
+            mergeFileInput.addEventListener('change', (e) => {
+                handleMergeFiles(e.target.files);
+            });
+        }
+        
+        function handleMergeFiles(files) {
+            if (!files || files.length === 0) return;
+            
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        mergeImages.push({
+                            file: file,
+                            dataUrl: e.target.result,
+                            img: img,
+                            width: img.width,
+                            height: img.height
+                        });
+                        updateMergeUI();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function updateMergeUI() {
+            // Update selected images list
+            const listContainer = document.getElementById('selected-images-list');
+            if (mergeImages.length === 0) {
+                listContainer.innerHTML = '';
+                document.getElementById('merge-download-btn').style.display = 'none';
+                document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+                return;
+            }
+            
+            let listHtml = '<div class="metadata-section"><div class="section-title">Selected Images (' + mergeImages.length + ')</div>';
+            listHtml += '<div style="padding: 10px;">';
+            
+            mergeImages.forEach((img, index) => {
+                listHtml += `<div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: #161b22; margin-bottom: 6px; border-radius: 4px;">`;
+                listHtml += `<img src="${img.dataUrl}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">`;
+                listHtml += `<div style="flex: 1; font-size: 11px; overflow: hidden;">`;
+                listHtml += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.file.name}</div>`;
+                listHtml += `<div style="color: #8b949e;">${img.width}x${img.height}</div>`;
+                listHtml += `</div>`;
+                listHtml += `<button onclick="removeMergeImage(${index})" style="background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;">✕</button>`;
+                listHtml += `</div>`;
+            });
+            
+            listHtml += '</div></div>';
+            listContainer.innerHTML = listHtml;
+            
+            // Show download button
+            document.getElementById('merge-download-btn').style.display = 'block';
+            
+            // Update preview
+            updateMergePreview();
+        }
+        
+        function removeMergeImage(index) {
+            mergeImages.splice(index, 1);
+            updateMergeUI();
+        }
+        
+        function setMergeDirection(direction) {
+            mergeDirection = direction;
+            
+            // Update button states
+            document.querySelectorAll('[id^="merge-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('merge-' + direction).classList.add('active');
+            
+            // Show/hide grid columns
+            document.getElementById('grid-columns-container').style.display = direction === 'grid' ? 'block' : 'none';
+            
+            updateMergePreview();
+        }
+        
+        function setImageFit(fit) {
+            imageFit = fit;
+            
+            // Update button states
+            document.querySelectorAll('[id^="fit-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('fit-' + fit).classList.add('active');
+            
+            updateMergePreview();
+        }
+        
+        function updateGridColumns(value) {
+            gridColumns = parseInt(value);
+            document.getElementById('grid-columns-value').textContent = gridColumns;
+            updateMergePreview();
+        }
+        
+        function updateMergePreview() {
+            if (mergeImages.length === 0) {
+                document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+                return;
+            }
+            
+            const preview = document.getElementById('merge-preview');
+            let html = '<div style="display: grid; gap: 10px; width: 100%;"';
+            
+            if (mergeDirection === 'horizontal') {
+                html += ` style="grid-template-columns: repeat(${mergeImages.length}, 1fr);">`;
+            } else if (mergeDirection === 'vertical') {
+                html += ` style="grid-template-rows: repeat(${mergeImages.length}, 1fr);">`;
+            } else { // grid
+                html += ` style="grid-template-columns: repeat(${gridColumns}, 1fr);">`;
+            }
+            
+            mergeImages.forEach(img => {
+                const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
+                html += `<div style="border: 1px solid #30363d; border-radius: 4px; overflow: hidden; aspect-ratio: 1;">`;
+                html += `<img src="${img.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle};">`;
+                html += `</div>`;
+            });
+            
+            html += '</div>';
+            preview.innerHTML = html;
+        }
+        
+        async function downloadMergedImage() {
+            if (mergeImages.length === 0) return;
+            
+            // Calculate canvas dimensions
+            let canvasWidth, canvasHeight;
+            let cellWidth = 0, cellHeight = 0;
+            
+            // Find max dimensions for cell sizing
+            mergeImages.forEach(img => {
+                cellWidth = Math.max(cellWidth, img.width);
+                cellHeight = Math.max(cellHeight, img.height);
+            });
+            
+            if (mergeDirection === 'horizontal') {
+                canvasWidth = cellWidth * mergeImages.length;
+                canvasHeight = cellHeight;
+            } else if (mergeDirection === 'vertical') {
+                canvasWidth = cellWidth;
+                canvasHeight = cellHeight * mergeImages.length;
+            } else { // grid
+                const rows = Math.ceil(mergeImages.length / gridColumns);
+                canvasWidth = cellWidth * gridColumns;
+                canvasHeight = cellHeight * rows;
+            }
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Fill background
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw images
+            mergeImages.forEach((imgData, index) => {
+                let x, y;
+                
+                if (mergeDirection === 'horizontal') {
+                    x = index * cellWidth;
+                    y = 0;
+                } else if (mergeDirection === 'vertical') {
+                    x = 0;
+                    y = index * cellHeight;
+                } else { // grid
+                    const row = Math.floor(index / gridColumns);
+                    const col = index % gridColumns;
+                    x = col * cellWidth;
+                    y = row * cellHeight;
+                }
+                
+                // Calculate image positioning based on fit mode
+                if (imageFit === 'cover' || imageFit === 'contain') {
+                    const scale = imageFit === 'cover' 
+                        ? Math.max(cellWidth / imgData.width, cellHeight / imgData.height)
+                        : Math.min(cellWidth / imgData.width, cellHeight / imgData.height);
+                    
+                    const scaledWidth = imgData.width * scale;
+                    const scaledHeight = imgData.height * scale;
+                    const offsetX = (cellWidth - scaledWidth) / 2;
+                    const offsetY = (cellHeight - scaledHeight) / 2;
+                    
+                    ctx.drawImage(imgData.img, x + offsetX, y + offsetY, scaledWidth, scaledHeight);
+                } else { // fill or scale-down
+                    ctx.drawImage(imgData.img, x, y, cellWidth, cellHeight);
+                }
+            });
+            
+            // Download
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `merged_${mergeDirection}_${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
     </script>
 </body>
 </html>
