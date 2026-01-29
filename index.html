@@ -2414,11 +2414,26 @@
             return summary.join('\n');
         }
         
+        // Initialize default button states
+        function initializeMergerDefaults() {
+            // Set default active states for buttons
+            document.getElementById('merge-grid')?.classList.add('active');
+            document.getElementById('fit-contain')?.classList.add('active');
+            
+            // Set default description
+            document.getElementById('fit-description').textContent = 'Scales to fit within cell, maintains aspect ratio';
+            
+            // Show grid columns by default (since grid is default)
+            document.getElementById('grid-columns-container').style.display = 'block';
+        }
+        
         // Setup merge upload zone (preview container)
         const mergePreviewContainer = document.getElementById('merge-preview-container');
         const mergeFileInput = document.getElementById('mergeFileInput');
         
         if (mergePreviewContainer && mergeFileInput) {
+            // Initialize defaults
+            initializeMergerDefaults();
             mergePreviewContainer.addEventListener('dblclick', (e) => {
                 // Double-click anywhere to add more images
                 if (!e.target.classList.contains('draggable-text')) {
