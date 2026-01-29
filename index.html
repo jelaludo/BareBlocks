@@ -202,18 +202,18 @@
         
         /* Metadata tables */
         .metadata-section {
-            margin: 20px 0;
+            margin: 10px 0;
             background: #161b22;
-            border-radius: 6px;
-            padding: 15px;
+            border-radius: 4px;
+            padding: 10px;
             border: 1px solid #30363d;
         }
         
         .section-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
             border-bottom: 1px solid #30363d;
         }
         
@@ -235,7 +235,7 @@
         }
         
         .metadata-table td {
-            padding: 8px;
+            padding: 4px 8px;
             vertical-align: top;
         }
         
@@ -277,10 +277,10 @@
         .provenance-summary {
             background: #1c2128;
             border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 20px;
-            font-size: 13px;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 10px;
+            font-size: 12px;
         }
         
         .found {
@@ -311,15 +311,15 @@
         
         /* Data recap styles */
         .data-recap {
-            margin: 10px 0;
-            font-size: 12px;
-            line-height: 1.8;
+            margin: 6px 0;
+            font-size: 11px;
+            line-height: 1.5;
         }
         
         .recap-item {
             display: inline-block;
-            margin-right: 15px;
-            margin-bottom: 5px;
+            margin-right: 12px;
+            margin-bottom: 3px;
         }
         
         /* Category colors for table headers */
@@ -885,7 +885,12 @@
             const textChunks = [];
             const decoder = new TextDecoder('utf-8');
             
+            console.log('=== Extracting PNG Text Chunks ===');
+            console.log('Total chunks:', chunks.length);
+            
             for (const chunk of chunks) {
+                console.log('Chunk type:', chunk.type, 'length:', chunk.length);
+                
                 if (chunk.type === 'tEXt' || chunk.type === 'iTXt' || chunk.type === 'zTXt') {
                     try {
                         // Find null terminator (keyword/text separator)
@@ -953,7 +958,10 @@
                         }
                         
                         textChunks.push({ keyword, text, type: chunk.type });
-                        console.log('Extracted PNG text chunk:', keyword, '- length:', text.length);
+                        console.log('✓ Extracted text chunk:', keyword, 'type:', chunk.type, 'text length:', text.length);
+                        if (keyword.toLowerCase().includes('prompt') || keyword.toLowerCase().includes('workflow')) {
+                            console.log('  → First 200 chars:', text.substring(0, 200));
+                        }
                     } catch (e) {
                         console.warn('Error parsing text chunk:', e);
                     }
@@ -1005,6 +1013,10 @@
             
             // Check PNG text chunks for workflow
             if (metadata.pngTextChunks) {
+                console.log('=== Detecting AI Metadata ===');
+                console.log('Found', metadata.pngTextChunks.length, 'text chunks');
+                console.log('Chunk keywords:', metadata.pngTextChunks.map(c => c.keyword).join(', '));
+                
                 let workflowData = null;
                 let originalPrompt = null;
                 let promptFromNodes = null;
@@ -1013,7 +1025,7 @@
                 for (const chunk of metadata.pngTextChunks) {
                     const keyLower = chunk.keyword.toLowerCase();
                     
-                    console.log('Processing PNG chunk:', chunk.keyword, 'length:', chunk.text.length);
+                    console.log('→ Processing chunk:', chunk.keyword, 'length:', chunk.text.length);
                     
                     // Check for workflow JSON
                     if (keyLower.includes('workflow') || keyLower === 'workflow') {
@@ -1063,9 +1075,15 @@
                 
                 // Extract data from workflow nodes
                 if (workflowData) {
+                    console.log('→ Extracting from workflow nodes...');
                     const nodes = workflowData.nodes || workflowData;
+                    console.log('  Workflow structure:', typeof nodes, 'Node count:', Object.keys(nodes).length);
+                    
                     if (nodes && typeof nodes === 'object') {
                         for (const [nodeId, node] of Object.entries(nodes)) {
+                            if (!node || typeof node !== 'object') continue;
+                            
+                            console.log('  Node', nodeId, '- class_type:', node.class_type);
                             if (!node || typeof node !== 'object') continue;
                             
                             // Extract model
