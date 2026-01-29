@@ -2367,18 +2367,86 @@
             
             let summary = [];
             
-            // File info
-            if (metadata.fileName) {
-                summary.push(metadata.fileName);
+            // Flatten EXIF data for easier access
+            let allExifData = {};
+            if (metadata.exif) {
+                allExifData = { ...metadata.exif };
+                if (metadata.exif.ifd0) Object.assign(allExifData, metadata.exif.ifd0);
+                if (metadata.exif.exif) Object.assign(allExifData, metadata.exif.exif);
+                if (metadata.exif.gps) Object.assign(allExifData, metadata.exif.gps);
             }
             
-            // Container type and size
-            if (metadata.containerType) {
-                summary.push(`${metadata.containerType.toUpperCase()}`);
+            // PRIORITY 1: AI Image with Prompt
+            if (metadata.aiMetadata?.hasComfyUI) {
+                const ai = metadata.aiMetadata;
+                
+                // Use resolved prompt if available, otherwise use regular prompt
+                let promptText = ai.resolvedPrompt || ai.prompt;
+                
+                if (promptText) {
+                    // Truncate very long prompts (keep first ~300 chars)
+                    if (promptText.length > 300) {
+                        promptText = promptText.substring(0, 297) + '...';
+                    }
+                    summary.push(promptText);
+                    
+                    // Add model info below prompt
+                    if (ai.model) {
+                        summary.push(`\n📐 ${ai.model}`);
+                    }
+                    
+                    return summary.join('\n');
+                }
             }
-            if (metadata.fileSize) {
-                const sizeMB = (metadata.fileSize / (1024 * 1024)).toFixed(2);
-                summary.push(`${sizeMB} MB`);
+            
+            // PRIORITY 2: Camera/Lens Info
+            if (allExifData.Make || allExifData.Model || allExifData.LensModel) {
+                if (allExifData.Make || allExifData.Model) {
+                    const camera = [allExifData.Make, allExifData.Model].filter(x => x).join(' ').trim();
+                    if (camera) summary.push(`📷 ${camera}`);
+                }
+                if (allExifData.LensModel) {
+                    summary.push(`🔍 ${allExifData.LensModel}`);
+                }
+                
+                // Add aperture, shutter, ISO if available
+                if (allExifData.FNumber) {
+                    summary.push(`f/${allExifData.FNumber}`);
+                }
+                if (allExifData.ExposureTime) {
+                    const shutter = allExifData.ExposureTime < 1 ? 
+                        `1/${Math.round(1/allExifData.ExposureTime)}s` : 
+                        `${allExifData.ExposureTime}s`;
+                    summary.push(shutter);
+                }
+                if (allExifData.ISO) {
+                    summary.push(`ISO ${allExifData.ISO}`);
+                }
+                
+                return summary.join('\n');
+            }
+            
+            // PRIORITY 3: GPS Info
+            if (allExifData.GPSLatitude || allExifData.GPSLongitude || allExifData.latitude || allExifData.longitude) {
+                summary.push('📍 Location Info:');
+                
+                const lat = allExifData.latitude || allExifData.GPSLatitude;
+                const lon = allExifData.longitude || allExifData.GPSLongitude;
+                
+                if (lat && lon) {
+                    summary.push(`${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+                }
+                
+                if (allExifData.GPSAltitude) {
+                    summary.push(`Altitude: ${allExifData.GPSAltitude}m`);
+                }
+                
+                return summary.join('\n');
+            }
+            
+            // FALLBACK: Basic file info
+            if (metadata.fileName) {
+                summary.push(metadata.fileName);
             }
             
             // Dimensions
@@ -2386,29 +2454,10 @@
                 summary.push(`${metadata.exif.ImageWidth} × ${metadata.exif.ImageHeight}`);
             }
             
-            // Camera/Lens (flatten EXIF like we do in Summary)
-            let allExifData = {};
-            if (metadata.exif) {
-                allExifData = { ...metadata.exif };
-                if (metadata.exif.ifd0) Object.assign(allExifData, metadata.exif.ifd0);
-                if (metadata.exif.exif) Object.assign(allExifData, metadata.exif.exif);
-            }
-            
-            if (allExifData.Make || allExifData.Model) {
-                const camera = [allExifData.Make, allExifData.Model].filter(x => x).join(' ').trim();
-                if (camera) summary.push(`📷 ${camera}`);
-            }
-            if (allExifData.LensModel) {
-                summary.push(`🔍 ${allExifData.LensModel}`);
-            }
-            
-            // AI metadata
-            if (metadata.aiMetadata) {
-                const ai = metadata.aiMetadata;
-                if (ai.hasComfyUI) {
-                    summary.push('🤖 ComfyUI');
-                    if (ai.model) summary.push(`Model: ${ai.model}`);
-                }
+            // Container type and size
+            if (metadata.containerType && metadata.fileSize) {
+                const sizeMB = (metadata.fileSize / (1024 * 1024)).toFixed(2);
+                summary.push(`${metadata.containerType.toUpperCase()} · ${sizeMB} MB`);
             }
             
             return summary.join('\n');
