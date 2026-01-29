@@ -1215,16 +1215,32 @@
             const sectionClass = sectionType ? `table-${sectionType}` : '';
             let html = `<table class="metadata-table ${sectionClass}"><tbody>`;
             
-            function formatValue(value) {
+            function formatValue(value, key = '') {
                 if (value === null || value === undefined) return 'null';
                 if (typeof value === 'boolean') return value.toString();
                 if (typeof value === 'number') return value.toLocaleString();
-                if (typeof value === 'string') return escapeHtml(value);
+                if (typeof value === 'string') {
+                    // Unescape Unicode sequences then escape HTML
+                    const unescaped = unescapeUnicode(value);
+                    const escaped = escapeHtml(unescaped);
+                    
+                    // Add copy button for long text (>100 chars) or specific keys
+                    const needsCopyButton = unescaped.length > 100 || 
+                        key.toLowerCase().includes('prompt') || 
+                        key.toLowerCase().includes('text');
+                    
+                    if (needsCopyButton) {
+                        const encoded = btoa(unescape(encodeURIComponent(unescaped)));
+                        return `${escaped}<br><span class="copy-text-btn" data-text-encoded="${encoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span>`;
+                    }
+                    
+                    return escaped;
+                }
                 if (Array.isArray(value)) {
                     // Check if it's an array of primitives
                     if (value.length === 0) return '[Empty Array]';
                     if (typeof value[0] !== 'object') {
-                        return escapeHtml(value.join(', '));
+                        return escapeHtml(value.map(v => typeof v === 'string' ? unescapeUnicode(v) : v).join(', '));
                     }
                     return `[Array: ${value.length} items]`;
                 }
@@ -1260,12 +1276,12 @@
                                 html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:11px;">`;
                                 
                                 for (const [itemKey, itemValue] of Object.entries(item)) {
-                                    html += `<tr><td>${escapeHtml(itemKey)}</td><td>${formatValue(itemValue)}</td></tr>`;
+                                    html += `<tr><td>${escapeHtml(itemKey)}</td><td>${formatValue(itemValue, itemKey)}</td></tr>`;
                                 }
                                 
                                 html += `</table></td></tr>`;
                             } else {
-                                html += `<tr><td>[${index}]</td><td>${formatValue(item)}</td></tr>`;
+                                html += `<tr><td>[${index}]</td><td>${formatValue(item, `[${index}]`)}</td></tr>`;
                             }
                         });
                         
@@ -1310,19 +1326,19 @@
                                 html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:11px;">`;
                                 
                                 for (const [deepKey, deepValue] of Object.entries(nestedValue)) {
-                                    html += `<tr><td>${escapeHtml(deepKey)}</td><td>${formatValue(deepValue)}</td></tr>`;
+                                    html += `<tr><td>${escapeHtml(deepKey)}</td><td>${formatValue(deepValue, deepKey)}</td></tr>`;
                                 }
                                 
                                 html += `</table></td></tr>`;
                             } else {
-                                html += `<tr><td>${escapeHtml(displayKey)}</td><td>${formatValue(nestedValue)}</td></tr>`;
+                                html += `<tr><td>${escapeHtml(displayKey)}</td><td>${formatValue(nestedValue, displayKey)}</td></tr>`;
                             }
                         }
                         
                         html += `</table></td></tr>`;
                     } else {
                         // Simple value (including simple arrays)
-                        html += `<tr><td>${escapeHtml(fullKey)}</td><td>${formatValue(value)}</td></tr>`;
+                        html += `<tr><td>${escapeHtml(fullKey)}</td><td>${formatValue(value, fullKey)}</td></tr>`;
                     }
                 }
             }
