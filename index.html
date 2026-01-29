@@ -250,6 +250,30 @@
             word-break: break-word;
         }
         
+        /* Expandable rows */
+        .expandable {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .expandable:hover {
+            background: #1c2128;
+        }
+        
+        .toggle {
+            display: inline-block;
+            color: #6FC3DF;
+            font-weight: bold;
+            margin-left: 8px;
+            user-select: none;
+            min-width: 15px;
+            text-align: center;
+        }
+        
+        .nested {
+            background: #0d1117;
+        }
+        
         .provenance-summary {
             background: #1c2128;
             border: 1px solid #30363d;
@@ -271,11 +295,36 @@
         
         .section-highlight {
             animation: highlight-pulse 2s ease-in-out;
+            border: 2px solid #6FC3DF !important;
         }
         
         @keyframes highlight-pulse {
-            0%, 100% { background: #161b22; }
-            50% { background: #1c2128; border-color: #6FC3DF; }
+            0%, 100% { 
+                background: #161b22; 
+                border-color: #6FC3DF;
+            }
+            50% { 
+                background: #1c2128; 
+                border-color: #3fb950;
+            }
+        }
+        
+        /* Data recap styles */
+        .data-recap {
+            margin: 10px 0;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        
+        .recap-item {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 5px;
+        }
+        
+        /* Category colors for table headers */
+        .category-anomaly {
+            color: #f85149;
         }
         
         /* Chunks visualization */
@@ -476,6 +525,9 @@
     <!-- Load exifr library from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/exifr@latest/dist/full.umd.js"></script>
     
+    <!-- Load pako for zlib decompression -->
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    
     <script>
         // Global state
         let currentFile = null;
@@ -556,6 +608,102 @@
             }
         }
         
+        // Calculate PNG structure data
+        function calculatePngStructure(chunks, totalSize) {
+            if (!chunks || chunks.length === 0) return null;
+            
+            let pixelDataBytes = 0;
+            let nonPixelBytes = 8; // PNG signature
+            
+            // Calculate bytes for each chunk type
+            for (const chunk of chunks) {
+                const chunkTotalSize = chunk.length + 12; // length (4) + type (4) + data + crc (4)
+                
+                if (chunk.type === 'IDAT') {
+                    pixelDataBytes += chunkTotalSize;
+                } else {
+                    nonPixelBytes += chunkTotalSize;
+                }
+            }
+            
+            return {
+                format: 'PNG',
+                totalChunks: chunks.length,
+                pixelDataBytes: pixelDataBytes,
+                nonPixelBytes: nonPixelBytes,
+                nonPixelRatio: (nonPixelBytes / totalSize).toFixed(4),
+                chunks: chunks.map(c => ({
+                    type: c.type,
+                    offset: c.offset,
+                    size: c.length,
+                    hasData: c.length > 0
+                }))
+            };
+        }
+        
+        // Calculate JPEG structure data
+        function calculateJpegStructure(segments, totalSize) {
+            if (!segments || segments.length === 0) return null;
+            
+            let pixelDataBytes = 0;
+            let nonPixelBytes = 0;
+            
+            for (const segment of segments) {
+                if (segment.type === '0xFFDA') { // SOS (Start of Scan) - contains pixel data
+                    pixelDataBytes += segment.length || 0;
+                } else {
+                    nonPixelBytes += (segment.length || 0) + 2; // marker (2 bytes)
+                }
+            }
+            
+            return {
+                format: 'JPEG',
+                totalSegments: segments.length,
+                pixelDataBytes: pixelDataBytes,
+                nonPixelBytes: nonPixelBytes,
+                nonPixelRatio: (nonPixelBytes / totalSize).toFixed(4),
+                segments: segments.map(s => ({
+                    type: s.type,
+                    typeName: s.typeName,
+                    offset: s.offset,
+                    size: s.length,
+                    hasData: (s.length || 0) > 0
+                }))
+            };
+        }
+        
+        // Calculate anomalies
+        function calculateAnomalies(metadata) {
+            const anomalies = {
+                fileSize: metadata.fileSize,
+                pixelDataBytes: metadata.structure?.pixelDataBytes || 0,
+                nonPixelBytes: metadata.structure?.nonPixelBytes || 0,
+                nonPixelRatio: metadata.structure?.nonPixelRatio || 0,
+                flags: []
+            };
+            
+            // Check for custom chunks (PNG)
+            if (metadata.chunks) {
+                const standardPngChunks = ['IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS', 'gAMA', 'cHRM', 'sRGB', 'iCCP', 'tEXt', 'zTXt', 'iTXt', 'bKGD', 'pHYs', 'sBIT', 'sPLT', 'hIST', 'tIME'];
+                const customChunks = metadata.chunks.filter(c => !standardPngChunks.includes(c.type));
+                if (customChunks.length > 0) {
+                    anomalies.flags.push('custom_chunks_present');
+                }
+            }
+            
+            // Check for high metadata ratio
+            if (parseFloat(anomalies.nonPixelRatio) > 0.2) {
+                anomalies.flags.push('high_metadata_ratio');
+            }
+            
+            // Check for AI metadata
+            if (metadata.aiMetadata?.hasComfyUI || metadata.aiMetadata?.hasStableDiffusion) {
+                anomalies.flags.push('ai_metadata_present');
+            }
+            
+            return anomalies;
+        }
+        
         // Metadata extraction (pure JavaScript)
         async function extractMetadata(file) {
             const result = {
@@ -606,8 +754,14 @@
             if (file.name.toLowerCase().endsWith('.png')) {
                 result.chunks = await parsePngChunks(arrayBuffer);
                 result.pngTextChunks = extractPngTextChunks(result.chunks);
+                
+                // Calculate structure data
+                result.structure = calculatePngStructure(result.chunks, file.size);
             } else if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg')) {
                 result.chunks = await parseJpegSegments(arrayBuffer);
+                
+                // Calculate structure data for JPEG
+                result.structure = calculateJpegStructure(result.chunks, file.size);
             }
             
             // Detect AI metadata
@@ -615,6 +769,9 @@
             
             // Determine provenance
             result.provenance = determineProvenance(result);
+            
+            // Calculate anomalies
+            result.anomalies = calculateAnomalies(result);
             
             return result;
         }
@@ -745,25 +902,54 @@
                         } else if (chunk.type === 'iTXt') {
                             // iTXt format: keyword, null, compression flag, compression method, language tag, null, translated keyword, null, text
                             let offset = nullIndex + 1;
-                            // Skip compression flag (1 byte)
-                            offset += 1;
-                            // Skip compression method (1 byte)
-                            offset += 1;
+                            const compressionFlag = chunk.data[offset];
+                            offset += 1; // Skip compression flag
+                            offset += 1; // Skip compression method
+                            
                             // Skip language tag (find next null)
                             while (offset < chunk.data.length && chunk.data[offset] !== 0) {
                                 offset++;
                             }
                             offset++; // Skip the null
+                            
                             // Skip translated keyword (find next null)
                             while (offset < chunk.data.length && chunk.data[offset] !== 0) {
                                 offset++;
                             }
                             offset++; // Skip the null
+                            
                             // Now we have the actual text
-                            text = decoder.decode(chunk.data.slice(offset));
+                            const textData = chunk.data.slice(offset);
+                            
+                            // Check if compressed (compressionFlag === 1)
+                            if (compressionFlag === 1 && typeof pako !== 'undefined') {
+                                try {
+                                    const decompressed = pako.inflate(textData);
+                                    text = decoder.decode(decompressed);
+                                } catch (e) {
+                                    console.warn('Failed to decompress iTXt chunk:', e);
+                                    text = decoder.decode(textData);
+                                }
+                            } else {
+                                text = decoder.decode(textData);
+                            }
                         } else if (chunk.type === 'zTXt') {
-                            // zTXt is compressed - for now, just try to decode
-                            text = decoder.decode(chunk.data.slice(nullIndex + 1));
+                            // zTXt: keyword, null, compression method (1 byte), compressed data
+                            const compressionMethod = chunk.data[nullIndex + 1];
+                            const compressedData = chunk.data.slice(nullIndex + 2);
+                            
+                            if (typeof pako !== 'undefined') {
+                                try {
+                                    const decompressed = pako.inflate(compressedData);
+                                    text = decoder.decode(decompressed);
+                                } catch (e) {
+                                    console.warn('Failed to decompress zTXt chunk:', e);
+                                    text = decoder.decode(compressedData);
+                                }
+                            } else {
+                                console.warn('pako not loaded, cannot decompress zTXt chunk');
+                                text = decoder.decode(compressedData);
+                            }
                         }
                         
                         textChunks.push({ keyword, text, type: chunk.type });
@@ -1008,6 +1194,144 @@
             return wildcards;
         }
         
+        // Toggle expandable rows
+        function toggleRow(element) {
+            const nestedRow = element.nextElementSibling;
+            const toggle = element.querySelector('.toggle');
+            
+            if (nestedRow && nestedRow.classList.contains('nested')) {
+                if (nestedRow.style.display === 'none') {
+                    nestedRow.style.display = 'table-row';
+                    toggle.textContent = '-';
+                } else {
+                    nestedRow.style.display = 'none';
+                    toggle.textContent = '+';
+                }
+            }
+        }
+        
+        // Create metadata table with expandable rows
+        function createMetadataTableHTML(metadata, sectionType = '') {
+            const sectionClass = sectionType ? `table-${sectionType}` : '';
+            let html = `<table class="metadata-table ${sectionClass}"><tbody>`;
+            
+            function formatValue(value) {
+                if (value === null || value === undefined) return 'null';
+                if (typeof value === 'boolean') return value.toString();
+                if (typeof value === 'number') return value.toLocaleString();
+                if (typeof value === 'string') return escapeHtml(value);
+                if (Array.isArray(value)) {
+                    // Check if it's an array of primitives
+                    if (value.length === 0) return '[Empty Array]';
+                    if (typeof value[0] !== 'object') {
+                        return escapeHtml(value.join(', '));
+                    }
+                    return `[Array: ${value.length} items]`;
+                }
+                return escapeHtml(String(value));
+            }
+            
+            function addRows(obj, prefix = '', depth = 0) {
+                if (depth > 3) return; // Limit nesting depth
+                
+                for (const [key, value] of Object.entries(obj)) {
+                    const fullKey = prefix ? `${prefix}.${key}` : key;
+                    
+                    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+                        // Array of objects - create expandable row
+                        html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;">`;
+                        html += `<td>${escapeHtml(fullKey)}</td>`;
+                        html += `<td>[Array: ${value.length} items] <span class="toggle">+</span></td>`;
+                        html += `</tr>`;
+                        html += `<tr class="nested" style="display:none;">`;
+                        html += `<td colspan="2" style="padding-left:20px; padding-top:0; padding-bottom:0;">`;
+                        html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:12px;">`;
+                        
+                        // Add array items
+                        value.forEach((item, index) => {
+                            if (typeof item === 'object' && item !== null) {
+                                const itemKeys = Object.keys(item);
+                                html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;">`;
+                                html += `<td>[${index}]</td>`;
+                                html += `<td>[Object: ${itemKeys.length} properties] <span class="toggle">+</span></td>`;
+                                html += `</tr>`;
+                                html += `<tr class="nested" style="display:none;">`;
+                                html += `<td colspan="2" style="padding-left:15px;">`;
+                                html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:11px;">`;
+                                
+                                for (const [itemKey, itemValue] of Object.entries(item)) {
+                                    html += `<tr><td>${escapeHtml(itemKey)}</td><td>${formatValue(itemValue)}</td></tr>`;
+                                }
+                                
+                                html += `</table></td></tr>`;
+                            } else {
+                                html += `<tr><td>[${index}]</td><td>${formatValue(item)}</td></tr>`;
+                            }
+                        });
+                        
+                        html += `</table></td></tr>`;
+                    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                        // Nested object - create expandable row
+                        const itemCount = Object.keys(value).length;
+                        const isExif = key === 'exif' || key.toLowerCase() === 'exif';
+                        
+                        if (isExif) {
+                            // EXIF expanded by default
+                            html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;">`;
+                            html += `<td>${escapeHtml(fullKey)}</td>`;
+                            html += `<td>[Object: ${itemCount} properties] <span class="toggle">-</span></td>`;
+                            html += `</tr>`;
+                            html += `<tr class="nested" style="display:table-row;">`;
+                        } else {
+                            // Other objects collapsed by default
+                            html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;">`;
+                            html += `<td>${escapeHtml(fullKey)}</td>`;
+                            html += `<td>[Object: ${itemCount} properties] <span class="toggle">+</span></td>`;
+                            html += `</tr>`;
+                            html += `<tr class="nested" style="display:none;">`;
+                        }
+                        
+                        html += `<td colspan="2" style="padding-left:20px; padding-top:0; padding-bottom:0;">`;
+                        html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:12px;">`;
+                        
+                        // Add nested properties
+                        for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                            const displayKey = nestedKey.replace(/^(EXIF|GPS|Image|Interoperability)\s+/i, '');
+                            
+                            if (nestedValue && typeof nestedValue === 'object' && !Array.isArray(nestedValue) && depth < 2) {
+                                // Another level of nesting
+                                const nestedItemCount = Object.keys(nestedValue).length;
+                                html += `<tr class="expandable" onclick="toggleRow(this)" style="cursor: pointer;">`;
+                                html += `<td>${escapeHtml(displayKey)}</td>`;
+                                html += `<td>[Object: ${nestedItemCount} properties] <span class="toggle">+</span></td>`;
+                                html += `</tr>`;
+                                html += `<tr class="nested" style="display:none;">`;
+                                html += `<td colspan="2" style="padding-left:15px;">`;
+                                html += `<table style="width:100%; margin:0; border-collapse:collapse; font-size:11px;">`;
+                                
+                                for (const [deepKey, deepValue] of Object.entries(nestedValue)) {
+                                    html += `<tr><td>${escapeHtml(deepKey)}</td><td>${formatValue(deepValue)}</td></tr>`;
+                                }
+                                
+                                html += `</table></td></tr>`;
+                            } else {
+                                html += `<tr><td>${escapeHtml(displayKey)}</td><td>${formatValue(nestedValue)}</td></tr>`;
+                            }
+                        }
+                        
+                        html += `</table></td></tr>`;
+                    } else {
+                        // Simple value (including simple arrays)
+                        html += `<tr><td>${escapeHtml(fullKey)}</td><td>${formatValue(value)}</td></tr>`;
+                    }
+                }
+            }
+            
+            addRows(metadata);
+            html += '</tbody></table>';
+            return html;
+        }
+        
         // Display metadata in terminal
         function displayMetadata(metadata) {
             let html = '<div class="output-line success">Metadata extracted successfully</div>';
@@ -1035,70 +1359,47 @@
             
             // Summary section
             html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
-            html += '<table class="metadata-table"><tbody>';
-            html += `<tr><td>fileName</td><td>${escapeHtml(metadata.fileName)}</td></tr>`;
-            html += `<tr><td>containerType</td><td class="category-structure">${metadata.containerType}</td></tr>`;
-            html += `<tr><td>fileSize (b)</td><td class="category-structure">${metadata.fileSize.toLocaleString()}</td></tr>`;
-            html += `<tr><td>fileSize (MB)</td><td class="category-structure">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</td></tr>`;
+            const summaryData = {
+                fileName: metadata.fileName,
+                containerType: metadata.containerType,
+                'fileSize (b)': metadata.fileSize,
+                'fileSize (MB)': (metadata.fileSize / 1024 / 1024).toFixed(2)
+            };
             
             if (metadata.exif) {
                 const width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
                 const height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
                 if (width && height) {
-                    html += `<tr><td>Dimensions</td><td class="category-structure">${width} x ${height}</td></tr>`;
+                    summaryData.Dimensions = `${width} x ${height}`;
                 }
             }
             
-            html += '</tbody></table></div>';
+            html += createMetadataTableHTML(summaryData, 'summary');
+            html += '</div>';
             
-            // Declared Metadata (EXIF) section
+            // Structure section
+            if (metadata.structure) {
+                html += '<div class="metadata-section" id="section-structure"><div class="section-title category-structure">Structure</div>';
+                html += createMetadataTableHTML(metadata.structure, 'structure');
+                html += '</div>';
+            }
+            
+            // Declared Metadata (EXIF) section - use expandable rows
             if (metadata.exif && Object.keys(metadata.exif).length > 0) {
                 html += '<div class="metadata-section" id="section-metadata"><div class="section-title category-metadata">Declared Metadata</div>';
-                html += '<table class="metadata-table"><tbody>';
-                
-                // Group by category
-                const categories = {
-                    'exif': {},
-                    'image_properties': {},
-                    'iptc': {},
-                    'xmp': {}
-                };
-                
-                for (const [key, value] of Object.entries(metadata.exif)) {
-                    if (value !== null && value !== undefined) {
-                        const displayKey = key.replace(/^(EXIF|GPS|Image|Interoperability)\s+/i, '');
-                        categories.exif[displayKey] = value;
-                    }
-                }
-                
-                // Display EXIF data
-                if (Object.keys(categories.exif).length > 0) {
-                    html += `<tr><td colspan="2" style="font-weight: bold; color: #FFA657; padding-top: 10px;">exif</td></tr>`;
-                    for (const [key, value] of Object.entries(categories.exif)) {
-                        const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-                        html += `<tr><td style="padding-left: 20px;">${escapeHtml(key)}</td><td>${escapeHtml(displayValue)}</td></tr>`;
-                    }
-                }
-                
-                html += '</tbody></table></div>';
+                html += createMetadataTableHTML({ exif: metadata.exif }, 'metadata');
+                html += '</div>';
             }
             
             // ComfyUI Workflow section
             if (metadata.aiMetadata && metadata.aiMetadata.hasComfyUI) {
                 html += '<div class="metadata-section" id="section-comfyui"><div class="section-title category-ai">ComfyUI Workflow</div>';
-                html += '<table class="metadata-table"><tbody>';
+                
+                const comfyuiData = {};
                 
                 // Extract workflow details
                 const workflow = metadata.aiMetadata.workflow;
                 if (workflow) {
-                    // Extract model, sampler, steps, etc. from workflow
-                    let model = metadata.aiMetadata.model;
-                    let sampler = null;
-                    let steps = null;
-                    let cfgScale = null;
-                    let seed = null;
-                    let loras = [];
-                    
                     // Parse workflow nodes
                     const nodes = workflow.nodes || workflow;
                     if (nodes && typeof nodes === 'object') {
@@ -1107,97 +1408,154 @@
                             
                             // Extract model
                             if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
-                                if (node.inputs.unet_name) model = node.inputs.unet_name;
-                                if (node.inputs.ckpt_name) model = node.inputs.ckpt_name;
+                                if (node.inputs.unet_name) comfyuiData.Model = node.inputs.unet_name;
+                                if (node.inputs.ckpt_name) comfyuiData.Model = node.inputs.ckpt_name;
                             }
                             
                             // Extract sampler
                             if (node.class_type === 'KSampler' && node.inputs) {
-                                sampler = node.inputs.sampler_name || sampler;
-                                steps = node.inputs.steps || steps;
-                                cfgScale = node.inputs.cfg || cfgScale;
-                                seed = node.inputs.seed || seed;
+                                if (node.inputs.sampler_name) comfyuiData.Sampler = node.inputs.sampler_name;
+                                if (node.inputs.steps) comfyuiData.Steps = node.inputs.steps;
+                                if (node.inputs.cfg) comfyuiData['CFG Scale'] = node.inputs.cfg;
+                                if (node.inputs.seed) comfyuiData.Seed = node.inputs.seed;
                             }
                             
                             // Extract LoRAs
                             if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
-                                loras.push(node.inputs.lora_name);
+                                if (!comfyuiData.LoRA) comfyuiData.LoRA = [];
+                                comfyuiData.LoRA.push(node.inputs.lora_name);
                             }
                         }
                     }
                     
-                    if (model) html += `<tr><td>Model</td><td>${escapeHtml(model)}</td></tr>`;
-                    if (loras.length > 0) html += `<tr><td>LoRA</td><td>${escapeHtml(loras.join(', '))}</td></tr>`;
-                    if (sampler) html += `<tr><td>Sampler</td><td class="category-ai">${escapeHtml(sampler)}</td></tr>`;
-                    if (steps) html += `<tr><td>Steps</td><td class="category-ai">${steps}</td></tr>`;
-                    if (cfgScale) html += `<tr><td>CFG Scale</td><td>${cfgScale}</td></tr>`;
-                    if (seed) html += `<tr><td>Seed</td><td>${seed}</td></tr>`;
+                    // Convert LoRA array to string
+                    if (comfyuiData.LoRA && Array.isArray(comfyuiData.LoRA)) {
+                        comfyuiData.LoRA = comfyuiData.LoRA.join(', ');
+                    }
                 }
                 
-                // Display prompt with copy button
+                // Add prompt
                 if (metadata.aiMetadata.prompt) {
-                    const promptText = unescapeUnicode(metadata.aiMetadata.prompt);
-                    const promptEncoded = btoa(unescape(encodeURIComponent(promptText)));
-                    html += `<tr><td>Prompt</td><td>${escapeHtml(promptText)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}">[ ]</span></td></tr>`;
+                    comfyuiData.Prompt = unescapeUnicode(metadata.aiMetadata.prompt);
                 }
-                
-                // Check for wildcards and resolved prompt
-                const originalPrompt = metadata.aiMetadata.prompt;
-                const resolvedPrompt = metadata.aiMetadata.resolvedPrompt;
                 
                 // Count wildcards
                 const wildcardCount = metadata.aiMetadata.wildcards ? metadata.aiMetadata.wildcards.length : 0;
+                comfyuiData['Wildcards Used'] = wildcardCount;
                 
-                html += `<tr><td>Wildcards Used</td><td>${wildcardCount}</td></tr>`;
-                html += `<tr><td>Wildcard result</td><td>${resolvedPrompt ? 'resolution saved' : 'resolution not saved'}</td></tr>`;
+                const resolvedPrompt = metadata.aiMetadata.resolvedPrompt;
+                comfyuiData['Wildcard result'] = resolvedPrompt ? 'resolution saved' : 'resolution not saved';
                 
-                // Display resolved prompt if available
+                // Add resolved prompt if available
                 if (resolvedPrompt) {
-                    const resolvedText = unescapeUnicode(resolvedPrompt);
-                    const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedText)));
-                    html += `<tr><td>Resolved Prompt</td><td>${escapeHtml(resolvedText)}<br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}">[ ]</span></td></tr>`;
+                    comfyuiData['Resolved Prompt'] = unescapeUnicode(resolvedPrompt);
                     
-                    // Extract and display wildcard resolutions
-                    if (originalPrompt && wildcardCount > 0) {
-                        const wildcards = extractWildcards(originalPrompt, resolvedPrompt);
+                    // Extract wildcard resolutions
+                    if (metadata.aiMetadata.prompt && wildcardCount > 0) {
+                        const wildcards = extractWildcards(metadata.aiMetadata.prompt, resolvedPrompt);
                         if (wildcards.length > 0) {
-                            html += `<tr><td colspan="2" style="padding-top: 10px; font-weight: bold;">Wildcard Resolutions</td></tr>`;
+                            const wildcardResolutions = {};
                             for (const wc of wildcards) {
-                                const wcResolved = unescapeUnicode(wc.resolved);
-                                html += `<tr><td style="padding-left: 20px;">${escapeHtml(wc.name)}</td><td>${escapeHtml(wcResolved)}</td></tr>`;
+                                wildcardResolutions[wc.name] = unescapeUnicode(wc.resolved);
                             }
+                            comfyuiData['Wildcard Resolutions'] = wildcardResolutions;
                         }
                     }
                 }
                 
-                // Display nodes count if available
+                // Add nodes count
                 if (workflow && (workflow.nodes || workflow)) {
                     const nodes = workflow.nodes || workflow;
-                    const nodeCount = Object.keys(nodes).length;
-                    html += `<tr><td>Nodes</td><td>${nodeCount} nodes</td></tr>`;
+                    comfyuiData.Nodes = `${Object.keys(nodes).length} nodes`;
                 }
                 
-                html += '</tbody></table></div>';
+                html += createMetadataTableHTML(comfyuiData, 'comfyui');
+                html += '</div>';
             }
             
             // Encryption and AI section (for non-ComfyUI AI metadata)
             if (metadata.aiMetadata && !metadata.aiMetadata.hasComfyUI && (metadata.aiMetadata.model || metadata.aiMetadata.prompt)) {
                 html += '<div class="metadata-section" id="section-ai"><div class="section-title category-ai">Encryption and AI</div>';
-                html += '<table class="metadata-table"><tbody>';
                 
-                if (metadata.aiMetadata.model) {
-                    html += `<tr><td>Model</td><td>${escapeHtml(metadata.aiMetadata.model)}</td></tr>`;
-                }
+                const aiData = {};
+                if (metadata.aiMetadata.model) aiData.Model = metadata.aiMetadata.model;
+                if (metadata.aiMetadata.prompt) aiData.Prompt = metadata.aiMetadata.prompt;
+                if (metadata.aiMetadata.sampler) aiData.Sampler = metadata.aiMetadata.sampler;
+                if (metadata.aiMetadata.steps) aiData.Steps = metadata.aiMetadata.steps;
+                if (metadata.aiMetadata.seed) aiData.Seed = metadata.aiMetadata.seed;
                 
-                if (metadata.aiMetadata.prompt) {
-                    const promptEncoded = btoa(unescape(encodeURIComponent(metadata.aiMetadata.prompt)));
-                    html += `<tr><td>Prompt</td><td>${escapeHtml(metadata.aiMetadata.prompt)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}">[ ]</span></td></tr>`;
-                }
-                
-                html += '</tbody></table></div>';
+                html += createMetadataTableHTML(aiData, 'ai');
+                html += '</div>';
             }
             
+            // Anomalies section
+            if (metadata.anomalies) {
+                html += '<div class="metadata-section" id="section-anomalies"><div class="section-title category-anomaly">Anomalies</div>';
+                html += createMetadataTableHTML(metadata.anomalies, 'anomaly');
+                html += '</div>';
+            }
+            
+            // Data Recap section
+            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
+            html += createDataRecap(metadata);
+            html += '</div>';
+            
+            // Bottom raw data display
+            html += '<div class="metadata-section"><div class="section-title">Full Object Display</div>';
+            html += '<p class="info" style="margin-bottom: 10px;">All extracted data in structured format:</p>';
+            html += createMetadataTableHTML({
+                summary: metadata.fileName ? { fileName: metadata.fileName, fileSize: metadata.fileSize, containerType: metadata.containerType } : null,
+                structure: metadata.structure,
+                metadata: metadata.exif ? { exif: metadata.exif } : null,
+                aiMetadata: metadata.aiMetadata,
+                anomalies: metadata.anomalies,
+                provenance: metadata.provenance
+            }, 'payload');
+            html += '</div>';
+            
             output.innerHTML = html;
+        }
+        
+        // Create Data Recap section
+        function createDataRecap(metadata) {
+            const checks = [
+                { name: 'Camera data', found: metadata.exif && (metadata.exif.Make || metadata.exif.Model), section: 'section-metadata' },
+                { name: 'Geo data', found: metadata.gps, section: 'section-metadata' },
+                { name: 'EXIF', found: metadata.exif && Object.keys(metadata.exif).length > 0, section: 'section-metadata' },
+                { name: 'IPTC', found: metadata.exif && metadata.exif.iptc, section: 'section-metadata' },
+                { name: 'XMP', found: metadata.exif && metadata.exif.xmp, section: 'section-metadata' },
+                { name: 'ComfyUI workflow JSON', found: metadata.aiMetadata?.hasComfyUI, section: 'section-comfyui' },
+                { name: 'AI metadata', found: metadata.aiMetadata?.hasComfyUI || metadata.aiMetadata?.hasStableDiffusion, section: 'section-comfyui' },
+                { name: 'Wildcards', found: metadata.aiMetadata?.wildcards && metadata.aiMetadata.wildcards.length > 0, section: 'section-comfyui' },
+                { name: 'Resolved prompt', found: metadata.aiMetadata?.resolvedPrompt, section: 'section-comfyui' },
+                { name: 'Structure data', found: metadata.structure, section: 'section-structure' },
+                { name: 'Anomalies', found: metadata.anomalies && metadata.anomalies.flags && metadata.anomalies.flags.length > 0, section: 'section-anomalies' }
+            ];
+            
+            let html = '<div class="data-recap">';
+            
+            for (const check of checks) {
+                if (check.found) {
+                    html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found" onclick="scrollToSection('${check.section}')" title="Click to jump to section">found</span></span> `;
+                } else {
+                    html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="not-found">not found</span></span> `;
+                }
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Scroll to section with highlight
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                section.classList.add('section-highlight');
+                setTimeout(() => {
+                    section.classList.remove('section-highlight');
+                }, 2000);
+            }
         }
         
         // Chunks visualization
