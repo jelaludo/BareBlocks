@@ -776,6 +776,69 @@
                                     <div id="output-dimensions" style="margin-bottom: 15px; padding: 10px; background: #161b22; border-radius: 4px; font-size: 11px; color: #8b949e; display: none;">
                                         <strong style="color: #c9d1d9;">Final Size:</strong> <span id="dimensions-text"></span>
                                     </div>
+                                    
+                                    <!-- Empty Cells Section -->
+                                    <div style="margin-bottom: 20px; padding: 12px; background: #161b22; border-radius: 4px; border: 1px solid #30363d;">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 12px;">
+                                            <input type="checkbox" id="include-empty-cells" onchange="toggleEmptyCells(this.checked)" style="cursor: pointer;">
+                                            <span style="color: #c9d1d9; font-size: 12px; font-weight: bold;">Include Empty Cells</span>
+                                        </label>
+                                        <div id="empty-cells-options" style="display: none;">
+                                            <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Pattern</label>
+                                            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                                <button class="tab-button" id="pattern-before" onclick="setEmptyCellPattern('before')" style="flex: 1; font-size: 10px;">Before Each</button>
+                                                <button class="tab-button active" id="pattern-after" onclick="setEmptyCellPattern('after')" style="flex: 1; font-size: 10px;">After Each</button>
+                                            </div>
+                                            <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Cell Color</label>
+                                            <div style="display: flex; gap: 8px;">
+                                                <input type="color" id="empty-cell-color" value="#ffffff" onchange="setEmptyCellColor(this.value)" style="width: 50px; height: 32px; cursor: pointer; border: 1px solid #30363d; border-radius: 4px; background: transparent;">
+                                                <input type="text" id="empty-cell-color-text" value="#ffffff" onchange="setEmptyCellColor(this.value)" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; font-family: monospace;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Text Overlay Section -->
+                                    <div style="padding: 12px; background: #161b22; border-radius: 4px; border: 1px solid #30363d;">
+                                        <div style="color: #c9d1d9; font-size: 12px; font-weight: bold; margin-bottom: 12px;">Text Overlay</div>
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Selected Cell</label>
+                                        <select id="selected-cell" onchange="selectCell(this.value)" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; margin-bottom: 12px; cursor: pointer;">
+                                            <option value="0">No items yet</option>
+                                        </select>
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Text</label>
+                                        <input type="text" id="cell-text" placeholder="Enter text..." onchange="updateCellText(this.value)" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; margin-bottom: 12px;">
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Font</label>
+                                        <select id="text-font" onchange="updateCellTextStyle('font', this.value)" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; margin-bottom: 12px; cursor: pointer;">
+                                            <option value="Arial, sans-serif">Arial</option>
+                                            <option value="Georgia, serif">Georgia</option>
+                                            <option value="Courier New, monospace">Courier New</option>
+                                            <option value="Times New Roman, serif">Times New Roman</option>
+                                            <option value="Verdana, sans-serif">Verdana</option>
+                                        </select>
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Size: <span id="text-size-value">48</span>px</label>
+                                        <input type="range" id="text-size" min="12" max="120" value="48" onchange="updateCellTextStyle('size', this.value); document.getElementById('text-size-value').textContent = this.value;" style="width: 100%; margin-bottom: 12px;">
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Color</label>
+                                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                            <input type="color" id="text-color" value="#ffffff" onchange="updateCellTextStyle('color', this.value)" style="width: 50px; height: 32px; cursor: pointer; border: 1px solid #30363d; border-radius: 4px; background: transparent;">
+                                            <input type="text" id="text-color-text" value="#ffffff" onchange="document.getElementById('text-color').value = this.value; updateCellTextStyle('color', this.value);" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; font-family: monospace;">
+                                        </div>
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Position</label>
+                                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'top')" style="flex: 1; font-size: 10px;">Top</button>
+                                            <button class="tab-button active" onclick="updateCellTextStyle('position', 'center')" style="flex: 1; font-size: 10px;">Center</button>
+                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'bottom')" style="flex: 1; font-size: 10px;">Bottom</button>
+                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'left')" style="flex: 1; font-size: 10px;">Left</button>
+                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'right')" style="flex: 1; font-size: 10px;">Right</button>
+                                        </div>
+                                        
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Opacity: <span id="text-opacity-value">100</span>%</label>
+                                        <input type="range" id="text-opacity" min="0" max="100" value="100" onchange="updateCellTextStyle('opacity', this.value / 100); document.getElementById('text-opacity-value').textContent = this.value;" style="width: 100%;">
+                                    </div>
                                 </div>
                             </div>
                             
@@ -2256,10 +2319,14 @@
         // IMAGE MERGER FUNCTIONALITY
         // ========================================
         
-        let mergeImages = [];
+        let mergeItems = []; // Array of {type: 'image'|'empty', data, text}
         let mergeDirection = 'grid';
         let imageFit = 'contain';
         let gridColumns = 2;
+        let includeEmptyCells = false;
+        let emptyCellPattern = 'after'; // 'before' | 'after'
+        let emptyCellColor = '#ffffff';
+        let selectedCellIndex = 0;
         
         // Setup merge upload zone
         const mergeUploadZone = document.getElementById('mergeUploadZone');
@@ -2298,12 +2365,21 @@
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
-                        mergeImages.push({
+                        mergeItems.push({
+                            type: 'image',
                             file: file,
                             dataUrl: e.target.result,
                             img: img,
                             width: img.width,
-                            height: img.height
+                            height: img.height,
+                            text: {
+                                content: '',
+                                font: 'Arial, sans-serif',
+                                size: 48,
+                                color: '#ffffff',
+                                position: 'center',
+                                opacity: 1.0
+                            }
                         });
                         updateMergeUI();
                     };
@@ -2313,32 +2389,181 @@
             }
         }
         
+        // Empty Cells Functions
+        function toggleEmptyCells(enabled) {
+            includeEmptyCells = enabled;
+            document.getElementById('empty-cells-options').style.display = enabled ? 'block' : 'none';
+            rebuildMergeItems();
+        }
+        
+        function setEmptyCellPattern(pattern) {
+            emptyCellPattern = pattern;
+            document.querySelectorAll('[id^="pattern-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('pattern-' + pattern).classList.add('active');
+            rebuildMergeItems();
+        }
+        
+        function setEmptyCellColor(color) {
+            emptyCellColor = color;
+            document.getElementById('empty-cell-color').value = color;
+            document.getElementById('empty-cell-color-text').value = color;
+            // Update existing empty cells
+            mergeItems.forEach(item => {
+                if (item.type === 'empty') {
+                    item.color = color;
+                }
+            });
+            updateMergePreview();
+        }
+        
+        function rebuildMergeItems() {
+            // Extract only image items
+            const images = mergeItems.filter(item => item.type === 'image');
+            mergeItems = [];
+            
+            if (!includeEmptyCells) {
+                mergeItems = images;
+            } else {
+                // Apply pattern
+                images.forEach((img, index) => {
+                    if (emptyCellPattern === 'before') {
+                        // Add empty cell before each image
+                        mergeItems.push({
+                            type: 'empty',
+                            color: emptyCellColor,
+                            text: {
+                                content: '',
+                                font: 'Arial, sans-serif',
+                                size: 48,
+                                color: '#ffffff',
+                                position: 'center',
+                                opacity: 1.0
+                            }
+                        });
+                    }
+                    mergeItems.push(img);
+                    if (emptyCellPattern === 'after') {
+                        // Add empty cell after each image
+                        mergeItems.push({
+                            type: 'empty',
+                            color: emptyCellColor,
+                            text: {
+                                content: '',
+                                font: 'Arial, sans-serif',
+                                size: 48,
+                                color: '#ffffff',
+                                position: 'center',
+                                opacity: 1.0
+                            }
+                        });
+                    }
+                });
+            }
+            
+            updateMergeUI();
+        }
+        
+        // Text Overlay Functions
+        function selectCell(index) {
+            selectedCellIndex = parseInt(index);
+            if (selectedCellIndex >= 0 && selectedCellIndex < mergeItems.length) {
+                const item = mergeItems[selectedCellIndex];
+                document.getElementById('cell-text').value = item.text.content || '';
+                document.getElementById('text-font').value = item.text.font;
+                document.getElementById('text-size').value = item.text.size;
+                document.getElementById('text-size-value').textContent = item.text.size;
+                document.getElementById('text-color').value = item.text.color;
+                document.getElementById('text-color-text').value = item.text.color;
+                document.getElementById('text-opacity').value = Math.round(item.text.opacity * 100);
+                document.getElementById('text-opacity-value').textContent = Math.round(item.text.opacity * 100);
+            }
+        }
+        
+        function updateCellText(text) {
+            if (selectedCellIndex >= 0 && selectedCellIndex < mergeItems.length) {
+                mergeItems[selectedCellIndex].text.content = text;
+                updateMergePreview();
+            }
+        }
+        
+        function updateCellTextStyle(property, value) {
+            if (selectedCellIndex >= 0 && selectedCellIndex < mergeItems.length) {
+                mergeItems[selectedCellIndex].text[property] = value;
+                
+                // Update active state for position buttons
+                if (property === 'position') {
+                    const positionContainer = event.target.parentElement;
+                    positionContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    event.target.classList.add('active');
+                }
+                
+                // Sync color text field
+                if (property === 'color') {
+                    document.getElementById('text-color-text').value = value;
+                }
+                
+                updateMergePreview();
+            }
+        }
+        
         function updateMergeUI() {
             // Update selected images list
             const listContainer = document.getElementById('selected-images-list');
-            if (mergeImages.length === 0) {
+            const imageCount = mergeItems.filter(item => item.type === 'image').length;
+            
+            if (mergeItems.length === 0) {
                 listContainer.innerHTML = '';
                 document.getElementById('merge-download-btn').style.display = 'none';
                 document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+                document.getElementById('selected-cell').innerHTML = '<option value="0">No items yet</option>';
                 return;
             }
             
-            let listHtml = '<div class="metadata-section"><div class="section-title">Selected Images (' + mergeImages.length + ')</div>';
+            let listHtml = '<div class="metadata-section"><div class="section-title">Items (' + mergeItems.length + ')</div>';
             listHtml += '<div style="padding: 10px;">';
             
-            mergeImages.forEach((img, index) => {
+            mergeItems.forEach((item, index) => {
                 listHtml += `<div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: #161b22; margin-bottom: 6px; border-radius: 4px;">`;
-                listHtml += `<img src="${img.dataUrl}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">`;
-                listHtml += `<div style="flex: 1; font-size: 11px; overflow: hidden;">`;
-                listHtml += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.file.name}</div>`;
-                listHtml += `<div style="color: #8b949e;">${img.width}x${img.height}</div>`;
-                listHtml += `</div>`;
-                listHtml += `<button onclick="removeMergeImage(${index})" style="background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;">✕</button>`;
+                
+                if (item.type === 'image') {
+                    listHtml += `<img src="${item.dataUrl}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">`;
+                    listHtml += `<div style="flex: 1; font-size: 11px; overflow: hidden;">`;
+                    listHtml += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.file.name}</div>`;
+                    listHtml += `<div style="color: #8b949e;">${item.width}x${item.height}</div>`;
+                    listHtml += `</div>`;
+                } else {
+                    listHtml += `<div style="width: 40px; height: 40px; background: ${item.color}; border: 1px solid #30363d; border-radius: 3px;"></div>`;
+                    listHtml += `<div style="flex: 1; font-size: 11px;">`;
+                    listHtml += `<div>Empty Cell</div>`;
+                    listHtml += `<div style="color: #8b949e;">${item.color}</div>`;
+                    listHtml += `</div>`;
+                }
+                
+                listHtml += `<button onclick="removeMergeItem(${index})" style="background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;">✕</button>`;
                 listHtml += `</div>`;
             });
             
             listHtml += '</div></div>';
             listContainer.innerHTML = listHtml;
+            
+            // Update cell selector dropdown
+            const cellSelector = document.getElementById('selected-cell');
+            let selectorHtml = '';
+            mergeItems.forEach((item, index) => {
+                if (item.type === 'image') {
+                    selectorHtml += `<option value="${index}">Image ${index + 1} - ${item.file.name.substring(0, 20)}</option>`;
+                } else {
+                    selectorHtml += `<option value="${index}">Empty Cell ${index + 1}</option>`;
+                }
+            });
+            cellSelector.innerHTML = selectorHtml;
+            
+            // Select first item by default
+            if (selectedCellIndex >= mergeItems.length) {
+                selectedCellIndex = 0;
+            }
+            cellSelector.value = selectedCellIndex;
+            selectCell(selectedCellIndex);
             
             // Show download button
             document.getElementById('merge-download-btn').style.display = 'block';
@@ -2347,9 +2572,14 @@
             updateMergePreview();
         }
         
-        function removeMergeImage(index) {
-            mergeImages.splice(index, 1);
-            updateMergeUI();
+        function removeMergeItem(index) {
+            mergeItems.splice(index, 1);
+            // If we removed an image, rebuild to maintain empty cell pattern
+            if (includeEmptyCells) {
+                rebuildMergeItems();
+            } else {
+                updateMergeUI();
+            }
         }
         
         function setMergeDirection(direction) {
@@ -2391,25 +2621,31 @@
         }
         
         function calculateMergeDimensions() {
-            if (mergeImages.length === 0) return null;
+            if (mergeItems.length === 0) return null;
             
-            // Find max dimensions for cell sizing
+            // Find max dimensions for cell sizing (only from images)
             let cellWidth = 0, cellHeight = 0;
-            mergeImages.forEach(img => {
-                cellWidth = Math.max(cellWidth, img.width);
-                cellHeight = Math.max(cellHeight, img.height);
+            mergeItems.forEach(item => {
+                if (item.type === 'image') {
+                    cellWidth = Math.max(cellWidth, item.width);
+                    cellHeight = Math.max(cellHeight, item.height);
+                }
             });
+            
+            // Default cell size if no images
+            if (cellWidth === 0) cellWidth = 800;
+            if (cellHeight === 0) cellHeight = 600;
             
             let canvasWidth, canvasHeight;
             
             if (mergeDirection === 'horizontal') {
-                canvasWidth = cellWidth * mergeImages.length;
+                canvasWidth = cellWidth * mergeItems.length;
                 canvasHeight = cellHeight;
             } else if (mergeDirection === 'vertical') {
                 canvasWidth = cellWidth;
-                canvasHeight = cellHeight * mergeImages.length;
+                canvasHeight = cellHeight * mergeItems.length;
             } else { // grid
-                const rows = Math.ceil(mergeImages.length / gridColumns);
+                const rows = Math.ceil(mergeItems.length / gridColumns);
                 canvasWidth = cellWidth * gridColumns;
                 canvasHeight = cellHeight * rows;
             }
@@ -2418,7 +2654,7 @@
         }
         
         function updateMergePreview() {
-            if (mergeImages.length === 0) {
+            if (mergeItems.length === 0) {
                 document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
                 document.getElementById('output-dimensions').style.display = 'none';
                 return;
@@ -2452,20 +2688,62 @@
             let gridStyle = `display: grid; gap: 2px; width: ${previewWidth}px; height: ${previewHeight}px; margin: 0 auto;`;
             
             if (mergeDirection === 'horizontal') {
-                gridStyle += ` grid-template-columns: repeat(${mergeImages.length}, 1fr);`;
+                gridStyle += ` grid-template-columns: repeat(${mergeItems.length}, 1fr);`;
             } else if (mergeDirection === 'vertical') {
-                gridStyle += ` grid-template-rows: repeat(${mergeImages.length}, 1fr);`;
+                gridStyle += ` grid-template-rows: repeat(${mergeItems.length}, 1fr);`;
             } else { // grid (default)
-                const rows = Math.ceil(mergeImages.length / gridColumns);
+                const rows = Math.ceil(mergeItems.length / gridColumns);
                 gridStyle += ` grid-template-columns: repeat(${gridColumns}, 1fr); grid-template-rows: repeat(${rows}, 1fr);`;
             }
             
             let html = `<div style="${gridStyle}">`;
             
-            mergeImages.forEach(img => {
-                const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
-                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: #000;">`;
-                html += `<img src="${img.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle};">`;
+            mergeItems.forEach((item, index) => {
+                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: ${item.type === 'empty' ? item.color : '#000'}; position: relative; display: flex; align-items: center; justify-content: center;">`;
+                
+                if (item.type === 'image') {
+                    const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
+                    html += `<img src="${item.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle}; position: absolute; top: 0; left: 0;">`;
+                }
+                
+                // Render text overlay if present
+                if (item.text && item.text.content) {
+                    const textStyle = `
+                        position: absolute;
+                        color: ${item.text.color};
+                        font-family: ${item.text.font};
+                        font-size: ${Math.max(12, item.text.size * (previewWidth / dims.width))}px;
+                        opacity: ${item.text.opacity};
+                        white-space: pre-wrap;
+                        text-align: center;
+                        padding: 10px;
+                        max-width: 90%;
+                        word-wrap: break-word;
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+                        pointer-events: none;
+                    `;
+                    
+                    let positionStyle = '';
+                    switch(item.text.position) {
+                        case 'top':
+                            positionStyle = 'top: 10px; left: 50%; transform: translateX(-50%);';
+                            break;
+                        case 'bottom':
+                            positionStyle = 'bottom: 10px; left: 50%; transform: translateX(-50%);';
+                            break;
+                        case 'left':
+                            positionStyle = 'left: 10px; top: 50%; transform: translateY(-50%); text-align: left;';
+                            break;
+                        case 'right':
+                            positionStyle = 'right: 10px; top: 50%; transform: translateY(-50%); text-align: right;';
+                            break;
+                        default: // center
+                            positionStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+                    }
+                    
+                    html += `<div style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
+                }
+                
                 html += `</div>`;
             });
             
@@ -2474,7 +2752,7 @@
         }
         
         async function downloadMergedImage() {
-            if (mergeImages.length === 0) return;
+            if (mergeItems.length === 0) return;
             
             // Calculate canvas dimensions using shared function
             const dims = calculateMergeDimensions();
@@ -2493,8 +2771,8 @@
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             
-            // Draw images
-            mergeImages.forEach((imgData, index) => {
+            // Draw items (images and empty cells)
+            mergeItems.forEach((item, index) => {
                 let x, y;
                 
                 if (mergeDirection === 'horizontal') {
@@ -2510,20 +2788,105 @@
                     y = row * cellHeight;
                 }
                 
-                // Calculate image positioning based on fit mode
-                if (imageFit === 'cover' || imageFit === 'contain') {
-                    const scale = imageFit === 'cover' 
-                        ? Math.max(cellWidth / imgData.width, cellHeight / imgData.height)
-                        : Math.min(cellWidth / imgData.width, cellHeight / imgData.height);
+                if (item.type === 'image') {
+                    // Draw image
+                    if (imageFit === 'cover' || imageFit === 'contain') {
+                        const scale = imageFit === 'cover' 
+                            ? Math.max(cellWidth / item.width, cellHeight / item.height)
+                            : Math.min(cellWidth / item.width, cellHeight / item.height);
+                        
+                        const scaledWidth = item.width * scale;
+                        const scaledHeight = item.height * scale;
+                        const offsetX = (cellWidth - scaledWidth) / 2;
+                        const offsetY = (cellHeight - scaledHeight) / 2;
+                        
+                        ctx.drawImage(item.img, x + offsetX, y + offsetY, scaledWidth, scaledHeight);
+                    } else { // fill or scale-down
+                        ctx.drawImage(item.img, x, y, cellWidth, cellHeight);
+                    }
+                } else {
+                    // Draw empty cell
+                    ctx.fillStyle = item.color;
+                    ctx.fillRect(x, y, cellWidth, cellHeight);
+                }
+                
+                // Draw text overlay if present
+                if (item.text && item.text.content) {
+                    ctx.save();
+                    ctx.font = `${item.text.size}px ${item.text.font}`;
+                    ctx.fillStyle = item.text.color;
+                    ctx.globalAlpha = item.text.opacity;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
                     
-                    const scaledWidth = imgData.width * scale;
-                    const scaledHeight = imgData.height * scale;
-                    const offsetX = (cellWidth - scaledWidth) / 2;
-                    const offsetY = (cellHeight - scaledHeight) / 2;
+                    // Add text shadow for better visibility
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 2;
                     
-                    ctx.drawImage(imgData.img, x + offsetX, y + offsetY, scaledWidth, scaledHeight);
-                } else { // fill or scale-down
-                    ctx.drawImage(imgData.img, x, y, cellWidth, cellHeight);
+                    // Calculate text position
+                    let textX, textY;
+                    const padding = 20;
+                    
+                    switch(item.text.position) {
+                        case 'top':
+                            textX = x + cellWidth / 2;
+                            textY = y + item.text.size + padding;
+                            break;
+                        case 'bottom':
+                            textX = x + cellWidth / 2;
+                            textY = y + cellHeight - padding;
+                            break;
+                        case 'left':
+                            textX = x + padding;
+                            textY = y + cellHeight / 2;
+                            ctx.textAlign = 'left';
+                            break;
+                        case 'right':
+                            textX = x + cellWidth - padding;
+                            textY = y + cellHeight / 2;
+                            ctx.textAlign = 'right';
+                            break;
+                        default: // center
+                            textX = x + cellWidth / 2;
+                            textY = y + cellHeight / 2;
+                    }
+                    
+                    // Wrap text if too long
+                    const maxWidth = cellWidth - (padding * 2);
+                    const words = item.text.content.split(' ');
+                    let lines = [];
+                    let currentLine = words[0];
+                    
+                    for (let i = 1; i < words.length; i++) {
+                        const testLine = currentLine + ' ' + words[i];
+                        const metrics = ctx.measureText(testLine);
+                        if (metrics.width > maxWidth) {
+                            lines.push(currentLine);
+                            currentLine = words[i];
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+                    lines.push(currentLine);
+                    
+                    // Draw each line
+                    const lineHeight = item.text.size * 1.2;
+                    const totalHeight = lines.length * lineHeight;
+                    let startY = textY - (totalHeight / 2) + (lineHeight / 2);
+                    
+                    if (item.text.position === 'top') {
+                        startY = textY;
+                    } else if (item.text.position === 'bottom') {
+                        startY = textY - totalHeight + lineHeight;
+                    }
+                    
+                    lines.forEach((line, i) => {
+                        ctx.fillText(line, textX, startY + (i * lineHeight));
+                    });
+                    
+                    ctx.restore();
                 }
             });
             
