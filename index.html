@@ -798,74 +798,35 @@
                                     </div>
                                     
                                     <!-- Text Overlay Section -->
-                                    <div style="padding: 12px; background: #161b22; border-radius: 4px; border: 1px solid #30363d;">
-                                        <div style="color: #c9d1d9; font-size: 12px; font-weight: bold; margin-bottom: 12px;">Text Overlay</div>
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Selected Cell</label>
-                                        <select id="selected-cell" onchange="selectCell(this.value)" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; margin-bottom: 12px; cursor: pointer;">
-                                            <option value="0">No items yet</option>
-                                        </select>
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Text</label>
-                                        <input type="text" id="cell-text" placeholder="Enter text..." onchange="updateCellText(this.value)" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; margin-bottom: 12px;">
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Font</label>
-                                        <select id="text-font" onchange="updateCellTextStyle('font', this.value)" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; margin-bottom: 12px; cursor: pointer;">
-                                            <option value="Arial, sans-serif">Arial</option>
-                                            <option value="Georgia, serif">Georgia</option>
-                                            <option value="Courier New, monospace">Courier New</option>
-                                            <option value="Times New Roman, serif">Times New Roman</option>
-                                            <option value="Verdana, sans-serif">Verdana</option>
-                                        </select>
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Size: <span id="text-size-value">48</span>px</label>
-                                        <input type="range" id="text-size" min="12" max="120" value="48" onchange="updateCellTextStyle('size', this.value); document.getElementById('text-size-value').textContent = this.value;" style="width: 100%; margin-bottom: 12px;">
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Color</label>
-                                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                                            <input type="color" id="text-color" value="#ffffff" onchange="updateCellTextStyle('color', this.value)" style="width: 50px; height: 32px; cursor: pointer; border: 1px solid #30363d; border-radius: 4px; background: transparent;">
-                                            <input type="text" id="text-color-text" value="#ffffff" onchange="document.getElementById('text-color').value = this.value; updateCellTextStyle('color', this.value);" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; font-family: monospace;">
-                                        </div>
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Position</label>
-                                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
-                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'top')" style="flex: 1; font-size: 10px;">Top</button>
-                                            <button class="tab-button active" onclick="updateCellTextStyle('position', 'center')" style="flex: 1; font-size: 10px;">Center</button>
-                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'bottom')" style="flex: 1; font-size: 10px;">Bottom</button>
-                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'left')" style="flex: 1; font-size: 10px;">Left</button>
-                                            <button class="tab-button" onclick="updateCellTextStyle('position', 'right')" style="flex: 1; font-size: 10px;">Right</button>
-                                        </div>
-                                        <p style="margin-bottom: 12px; font-size: 10px; color: #6FC3DF; font-style: italic;">
-                                            💡 Or drag text in preview to position freely
+                                    <div style="padding: 15px; background: #161b22; border-radius: 4px; border: 1px solid #30363d; text-align: center;">
+                                        <div style="color: #6FC3DF; font-size: 13px; font-weight: bold; margin-bottom: 10px;">✏️ Text Editing</div>
+                                        <p style="color: #8b949e; font-size: 11px; line-height: 1.6; margin: 0;">
+                                            <strong style="color: #c9d1d9;">Click</strong> any text to edit<br>
+                                            <strong style="color: #c9d1d9;">Drag</strong> text to reposition<br>
+                                            <strong style="color: #c9d1d9;">Double-click</strong> empty area to add more images
                                         </p>
-                                        
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Opacity: <span id="text-opacity-value">100</span>%</label>
-                                        <input type="range" id="text-opacity" min="0" max="100" value="100" onchange="updateCellTextStyle('opacity', this.value / 100); document.getElementById('text-opacity-value').textContent = this.value;" style="width: 100%;">
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Upload Zone -->
-                            <div class="upload-zone" id="mergeUploadZone" style="margin-top: 15px; min-height: 150px;">
-                                <div class="upload-icon">[   ]</div>
-                                <div>Click or drag files here to merge</div>
-                                <div class="info" style="margin-top: 10px; font-size: 11px;">
-                                    Supports: JPEG, PNG, TIFF, HEIC<br>
-                                    All processing happens in your browser
-                                </div>
-                            </div>
-                            <input type="file" id="mergeFileInput" accept="image/*" multiple style="display: none;">
                             
                             <!-- Selected Images List -->
                             <div id="selected-images-list" style="margin-top: 15px;"></div>
                         </div>
                         
-                        <!-- Right Panel: Preview -->
+                        <!-- Right Panel: Preview + Upload -->
                         <div style="flex: 1; min-width: 400px;">
                             <div class="metadata-section" style="min-height: 500px;">
-                                <div class="section-title">Preview Area</div>
-                                <div id="merge-preview" style="padding: 20px; text-align: center; min-height: 450px; display: flex; align-items: center; justify-content: center;">
-                                    <p class="info">Add images to see preview</p>
+                                <div class="section-title">Preview & Upload</div>
+                                <div id="merge-preview-container" class="upload-zone" style="padding: 20px; text-align: center; min-height: 450px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+                                    <input type="file" id="mergeFileInput" accept="image/*" multiple style="display: none;">
+                                    <div id="merge-preview" style="width: 100%; height: 100%;">
+                                        <div class="upload-icon" style="font-size: 48px; margin-bottom: 20px;">[   ]</div>
+                                        <div style="font-size: 14px; color: #c9d1d9; margin-bottom: 10px;">Click or drag files here to merge</div>
+                                        <div class="info" style="font-size: 11px;">
+                                            Supports: JPEG, PNG, TIFF, HEIC<br>
+                                            All processing happens in your browser
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -882,12 +843,48 @@
     
     <!-- Text Edit Modal -->
     <div id="text-edit-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; align-items: center; justify-content: center;">
-        <div id="modal-content" style="background: #161b22; border: 2px solid #6FC3DF; border-radius: 8px; padding: 20px; width: 500px; max-width: 90%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+        <div id="modal-content" style="background: #161b22; border: 2px solid #6FC3DF; border-radius: 8px; padding: 20px; width: 600px; max-width: 90%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
             <div id="modal-header" style="cursor: move; padding: 10px; margin: -20px -20px 15px -20px; background: #0d1117; border-bottom: 1px solid #30363d; border-radius: 6px 6px 0 0; user-select: none;">
                 <h3 style="margin: 0; color: #6FC3DF; font-size: 14px;">✏️ Edit Text</h3>
             </div>
-            <textarea id="modal-text-input" style="width: 100%; min-height: 120px; padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; resize: vertical;" placeholder="Enter text..."></textarea>
-            <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+            
+            <!-- Text Input -->
+            <textarea id="modal-text-input" style="width: 100%; min-height: 100px; padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; resize: vertical; margin-bottom: 15px;" placeholder="Enter text..."></textarea>
+            
+            <!-- Styling Controls -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Font</label>
+                    <select id="modal-text-font" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; cursor: pointer;">
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="Courier New, monospace">Courier New</option>
+                        <option value="Times New Roman, serif">Times New Roman</option>
+                        <option value="Verdana, sans-serif">Verdana</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Size: <span id="modal-text-size-value">48</span>px</label>
+                    <input type="range" id="modal-text-size" min="12" max="120" value="48" style="width: 100%;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Color</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="color" id="modal-text-color" value="#ffffff" style="width: 50px; height: 32px; cursor: pointer; border: 1px solid #30363d; border-radius: 4px; background: transparent;">
+                        <input type="text" id="modal-text-color-text" value="#ffffff" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; font-family: monospace;">
+                    </div>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Opacity: <span id="modal-text-opacity-value">100</span>%</label>
+                    <input type="range" id="modal-text-opacity" min="0" max="100" value="100" style="width: 100%;">
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="closeTextModal(false)" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; font-size: 12px;">Cancel</button>
                 <button onclick="closeTextModal(true)" style="padding: 8px 16px; background: #238636; border: 1px solid #2ea043; border-radius: 4px; color: #fff; cursor: pointer; font-size: 12px; font-weight: bold;">Save</button>
             </div>
@@ -2351,25 +2348,32 @@
         let modalOffsetX = 0;
         let modalOffsetY = 0;
         
-        // Setup merge upload zone
-        const mergeUploadZone = document.getElementById('mergeUploadZone');
+        // Setup merge upload zone (preview container)
+        const mergePreviewContainer = document.getElementById('merge-preview-container');
         const mergeFileInput = document.getElementById('mergeFileInput');
         
-        if (mergeUploadZone && mergeFileInput) {
-            mergeUploadZone.addEventListener('click', () => mergeFileInput.click());
-            
-            mergeUploadZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                mergeUploadZone.classList.add('drag-over');
+        if (mergePreviewContainer && mergeFileInput) {
+            mergePreviewContainer.addEventListener('dblclick', (e) => {
+                // Double-click anywhere to add more images
+                if (!e.target.classList.contains('draggable-text')) {
+                    mergeFileInput.click();
+                }
             });
             
-            mergeUploadZone.addEventListener('dragleave', () => {
-                mergeUploadZone.classList.remove('drag-over');
+            mergePreviewContainer.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                mergePreviewContainer.classList.add('drag-over');
             });
             
-            mergeUploadZone.addEventListener('drop', (e) => {
+            mergePreviewContainer.addEventListener('dragleave', (e) => {
+                if (e.target === mergePreviewContainer) {
+                    mergePreviewContainer.classList.remove('drag-over');
+                }
+            });
+            
+            mergePreviewContainer.addEventListener('drop', (e) => {
                 e.preventDefault();
-                mergeUploadZone.classList.remove('drag-over');
+                mergePreviewContainer.classList.remove('drag-over');
                 handleMergeFiles(e.dataTransfer.files);
             });
             
@@ -2532,10 +2536,36 @@
             }
         }
         
+        // Text Click/Drag Handler
+        let mouseDownTime = 0;
+        let mouseDownX = 0;
+        let mouseDownY = 0;
+        
+        function handleTextMouseDown(event, cellIndex) {
+            event.stopPropagation();
+            mouseDownTime = Date.now();
+            mouseDownX = event.clientX;
+            mouseDownY = event.clientY;
+            dragCellIndex = cellIndex;
+            
+            // Wait to see if this is a drag or a click
+            setTimeout(() => {
+                const timeDiff = Date.now() - mouseDownTime;
+                const moveDiff = Math.abs(event.clientX - mouseDownX) + Math.abs(event.clientY - mouseDownY);
+                
+                if (timeDiff < 200 && moveDiff < 5 && !isDraggingText) {
+                    // It's a click - open modal
+                    openTextModal(cellIndex);
+                }
+            }, 250);
+            
+            startDragText(event, cellIndex);
+        }
+        
         // Text Drag Functions
         function startDragText(event, cellIndex) {
             event.stopPropagation();
-            isDraggingText = true;
+            isDraggingText = false; // Start as false, becomes true on movement
             dragCellIndex = cellIndex;
             
             const textElement = event.target;
@@ -2543,6 +2573,13 @@
             const cellRect = cellElement.getBoundingClientRect();
             
             function onMouseMove(e) {
+                const moveDist = Math.abs(e.clientX - mouseDownX) + Math.abs(e.clientY - mouseDownY);
+                
+                // Start dragging if moved more than 5px
+                if (moveDist > 5) {
+                    isDraggingText = true;
+                }
+                
                 if (!isDraggingText) return;
                 
                 const x = e.clientX - cellRect.left;
@@ -2828,7 +2865,7 @@
                         }
                     }
                     
-                    html += `<div class="draggable-text" data-cell-index="${index}" onmousedown="startDragText(event, ${index})" ondblclick="openTextModal(${index})" style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
+                    html += `<div class="draggable-text" data-cell-index="${index}" onmousedown="handleTextMouseDown(event, ${index})" style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
                 }
                 
                 html += `</div>`;
@@ -2844,17 +2881,24 @@
             
             modalCellIndex = cellIndex;
             const modal = document.getElementById('text-edit-modal');
-            const textInput = document.getElementById('modal-text-input');
             
-            // Load current text
+            // Load current text and settings
             if (cellIndex >= 0 && cellIndex < mergeItems.length) {
-                textInput.value = mergeItems[cellIndex].text.content || '';
+                const textConfig = mergeItems[cellIndex].text;
+                document.getElementById('modal-text-input').value = textConfig.content || '';
+                document.getElementById('modal-text-font').value = textConfig.font;
+                document.getElementById('modal-text-size').value = textConfig.size;
+                document.getElementById('modal-text-size-value').textContent = textConfig.size;
+                document.getElementById('modal-text-color').value = textConfig.color;
+                document.getElementById('modal-text-color-text').value = textConfig.color;
+                document.getElementById('modal-text-opacity').value = Math.round(textConfig.opacity * 100);
+                document.getElementById('modal-text-opacity-value').textContent = Math.round(textConfig.opacity * 100);
             }
             
             // Show modal
             modal.style.display = 'flex';
-            textInput.focus();
-            textInput.select();
+            document.getElementById('modal-text-input').focus();
+            document.getElementById('modal-text-input').select();
             
             // Setup modal dragging
             const modalContent = document.getElementById('modal-content');
@@ -2867,12 +2911,26 @@
                 modalOffsetY = e.clientY - rect.top;
             };
             
-            // Handle Enter key to save
-            textInput.onkeydown = function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    closeTextModal(true);
-                } else if (e.key === 'Escape') {
+            // Setup live updates
+            document.getElementById('modal-text-size').oninput = function(e) {
+                document.getElementById('modal-text-size-value').textContent = e.target.value;
+            };
+            
+            document.getElementById('modal-text-opacity').oninput = function(e) {
+                document.getElementById('modal-text-opacity-value').textContent = e.target.value;
+            };
+            
+            document.getElementById('modal-text-color').onchange = function(e) {
+                document.getElementById('modal-text-color-text').value = e.target.value;
+            };
+            
+            document.getElementById('modal-text-color-text').onchange = function(e) {
+                document.getElementById('modal-text-color').value = e.target.value;
+            };
+            
+            // Handle Escape key
+            document.getElementById('modal-text-input').onkeydown = function(e) {
+                if (e.key === 'Escape') {
                     closeTextModal(false);
                 }
             };
@@ -2880,15 +2938,14 @@
         
         function closeTextModal(save) {
             const modal = document.getElementById('text-edit-modal');
-            const textInput = document.getElementById('modal-text-input');
             
             if (save && modalCellIndex >= 0 && modalCellIndex < mergeItems.length) {
-                mergeItems[modalCellIndex].text.content = textInput.value;
-                
-                // Update the text input in the settings panel if this is the selected cell
-                if (modalCellIndex === selectedCellIndex) {
-                    document.getElementById('cell-text').value = textInput.value;
-                }
+                // Save all settings
+                mergeItems[modalCellIndex].text.content = document.getElementById('modal-text-input').value;
+                mergeItems[modalCellIndex].text.font = document.getElementById('modal-text-font').value;
+                mergeItems[modalCellIndex].text.size = parseInt(document.getElementById('modal-text-size').value);
+                mergeItems[modalCellIndex].text.color = document.getElementById('modal-text-color').value;
+                mergeItems[modalCellIndex].text.opacity = parseInt(document.getElementById('modal-text-opacity').value) / 100;
                 
                 updateMergePreview();
             }
