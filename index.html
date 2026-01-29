@@ -339,12 +339,14 @@
             margin: 6px 0;
             font-size: 11px;
             line-height: 1.5;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         
         .recap-item {
             display: inline-block;
-            margin-right: 12px;
-            margin-bottom: 3px;
+            white-space: nowrap;
         }
         
         /* Category colors for table headers */
@@ -501,6 +503,17 @@
             
             .metadata-table td:last-child {
                 font-size: 12px;
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            /* ComfyUI specific mobile styles */
+            #section-comfyui .metadata-table td:first-child {
+                width: 35%;
+            }
+            
+            #section-comfyui .metadata-table td:last-child {
+                font-size: 11px;
             }
             
             .copy-icon, .copy-text-btn {
@@ -519,9 +532,13 @@
             }
             
             /* Better spacing for recap items */
+            .data-recap {
+                gap: 6px;
+                font-size: 10px;
+            }
+            
             .recap-item {
-                padding: 8px;
-                margin: 6px 0;
+                display: inline-block;
             }
             
             .provenance-summary {
@@ -575,9 +592,19 @@
                 width: 50%;
             }
             
+            /* ComfyUI specific - narrower label column for more value space */
+            #section-comfyui .metadata-table td:first-child {
+                width: 30%;
+                font-size: 10px;
+            }
+            
+            #section-comfyui .metadata-table td:last-child {
+                width: 70%;
+                font-size: 10px;
+            }
+            
             /* Stack layout for very small screens on key metadata */
-            .provenance-summary table td,
-            .data-recap table td {
+            .provenance-summary table td {
                 display: block;
                 width: 100% !important;
             }
@@ -594,9 +621,14 @@
                 border-bottom: 1px solid #21262d;
             }
             
+            .data-recap {
+                gap: 4px;
+                font-size: 10px;
+                line-height: 1.4;
+            }
+            
             .recap-item {
-                padding: 6px;
-                font-size: 11px;
+                font-size: 10px;
             }
             
             .upload-zone {
@@ -624,6 +656,15 @@
             
             .metadata-table td:first-child {
                 width: 55%;
+            }
+            
+            /* ComfyUI gets even narrower label on very small screens */
+            #section-comfyui .metadata-table td:first-child {
+                width: 28%;
+            }
+            
+            #section-comfyui .metadata-table td:last-child {
+                width: 72%;
             }
             
             .copy-icon, .copy-text-btn {
