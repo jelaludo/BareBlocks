@@ -1027,30 +1027,16 @@
                     
                     console.log('→ Processing chunk:', chunk.keyword, 'length:', chunk.text.length);
                     
-                    // Check for workflow JSON
-                    if (keyLower.includes('workflow') || keyLower === 'workflow') {
-                        ai.hasComfyUI = true;
-                        try {
-                            workflowData = JSON.parse(chunk.text);
-                            ai.workflow = workflowData;
-                            console.log('Parsed workflow JSON');
-                        } catch (e) {
-                            console.log('Workflow chunk is not JSON');
-                        }
-                    }
-                    
-                    // Check for prompt - could be JSON (workflow nodes) or text
+                    // Check for prompt FIRST - could be JSON (workflow nodes) or text
                     if (keyLower === 'prompt') {
                         try {
                             const promptData = JSON.parse(chunk.text);
                             if (promptData && typeof promptData === 'object') {
-                                // This is workflow nodes JSON
-                                if (!workflowData) {
-                                    workflowData = promptData;
-                                    ai.workflow = workflowData;
-                                    ai.hasComfyUI = true;
-                                }
-                                console.log('Prompt chunk contains workflow nodes JSON');
+                                // This is workflow nodes JSON - PRIORITIZE THIS!
+                                workflowData = promptData;
+                                ai.workflow = workflowData;
+                                ai.hasComfyUI = true;
+                                console.log('✓ Prompt chunk contains workflow nodes JSON - USING THIS');
                             }
                         } catch (e) {
                             // It's a text prompt - this is likely the original with wildcards
@@ -1058,6 +1044,24 @@
                             if (!originalPrompt) {
                                 originalPrompt = chunk.text;
                             }
+                        }
+                    }
+                    
+                    // Check for workflow JSON (but don't overwrite if we have prompt data)
+                    if (keyLower.includes('workflow') || keyLower === 'workflow') {
+                        ai.hasComfyUI = true;
+                        try {
+                            const workflowJSON = JSON.parse(chunk.text);
+                            // Only use workflow chunk if we don't have prompt chunk data
+                            if (!workflowData) {
+                                workflowData = workflowJSON;
+                                ai.workflow = workflowData;
+                                console.log('Parsed workflow JSON (no prompt data yet)');
+                            } else {
+                                console.log('Skipping workflow chunk - already have prompt data');
+                            }
+                        } catch (e) {
+                            console.log('Workflow chunk is not JSON');
                         }
                     }
                     
