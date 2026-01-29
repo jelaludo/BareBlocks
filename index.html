@@ -828,13 +828,16 @@
                                         </div>
                                         
                                         <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Position</label>
-                                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+                                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
                                             <button class="tab-button" onclick="updateCellTextStyle('position', 'top')" style="flex: 1; font-size: 10px;">Top</button>
                                             <button class="tab-button active" onclick="updateCellTextStyle('position', 'center')" style="flex: 1; font-size: 10px;">Center</button>
                                             <button class="tab-button" onclick="updateCellTextStyle('position', 'bottom')" style="flex: 1; font-size: 10px;">Bottom</button>
                                             <button class="tab-button" onclick="updateCellTextStyle('position', 'left')" style="flex: 1; font-size: 10px;">Left</button>
                                             <button class="tab-button" onclick="updateCellTextStyle('position', 'right')" style="flex: 1; font-size: 10px;">Right</button>
                                         </div>
+                                        <p style="margin-bottom: 12px; font-size: 10px; color: #6FC3DF; font-style: italic;">
+                                            💡 Or drag text in preview to position freely
+                                        </p>
                                         
                                         <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Opacity: <span id="text-opacity-value">100</span>%</label>
                                         <input type="range" id="text-opacity" min="0" max="100" value="100" onchange="updateCellTextStyle('opacity', this.value / 100); document.getElementById('text-opacity-value').textContent = this.value;" style="width: 100%;">
@@ -2327,6 +2330,8 @@
         let emptyCellPattern = 'after'; // 'before' | 'after'
         let emptyCellColor = '#ffffff';
         let selectedCellIndex = 0;
+        let isDraggingText = false;
+        let dragCellIndex = -1;
         
         // Setup merge upload zone
         const mergeUploadZone = document.getElementById('mergeUploadZone');
@@ -2427,15 +2432,15 @@
                 // Apply pattern
                 images.forEach((img, index) => {
                     if (emptyCellPattern === 'before') {
-                        // Add empty cell before each image
+                        // Add empty cell before each image with placeholder text
                         mergeItems.push({
                             type: 'empty',
                             color: emptyCellColor,
                             text: {
-                                content: '',
+                                content: 'Text Here',
                                 font: 'Arial, sans-serif',
                                 size: 48,
-                                color: '#ffffff',
+                                color: '#000000',
                                 position: 'center',
                                 opacity: 1.0
                             }
@@ -2443,15 +2448,15 @@
                     }
                     mergeItems.push(img);
                     if (emptyCellPattern === 'after') {
-                        // Add empty cell after each image
+                        // Add empty cell after each image with placeholder text
                         mergeItems.push({
                             type: 'empty',
                             color: emptyCellColor,
                             text: {
-                                content: '',
+                                content: 'Text Here',
                                 font: 'Arial, sans-serif',
                                 size: 48,
-                                color: '#ffffff',
+                                color: '#000000',
                                 position: 'center',
                                 opacity: 1.0
                             }
@@ -2495,6 +2500,9 @@
                     const positionContainer = event.target.parentElement;
                     positionContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
                     event.target.classList.add('active');
+                    // Clear custom position when using presets
+                    delete mergeItems[selectedCellIndex].text.customX;
+                    delete mergeItems[selectedCellIndex].text.customY;
                 }
                 
                 // Sync color text field
@@ -2504,6 +2512,58 @@
                 
                 updateMergePreview();
             }
+        }
+        
+        // Text Drag Functions
+        function startDragText(event, cellIndex) {
+            event.stopPropagation();
+            isDraggingText = true;
+            dragCellIndex = cellIndex;
+            
+            const textElement = event.target;
+            const cellElement = textElement.parentElement;
+            const cellRect = cellElement.getBoundingClientRect();
+            
+            function onMouseMove(e) {
+                if (!isDraggingText) return;
+                
+                const x = e.clientX - cellRect.left;
+                const y = e.clientY - cellRect.top;
+                
+                // Convert to percentage
+                const percentX = Math.max(10, Math.min(90, (x / cellRect.width) * 100));
+                const percentY = Math.max(10, Math.min(90, (y / cellRect.height) * 100));
+                
+                // Update text position
+                mergeItems[dragCellIndex].text.customX = percentX;
+                mergeItems[dragCellIndex].text.customY = percentY;
+                mergeItems[dragCellIndex].text.position = 'custom';
+                
+                // Update preview
+                textElement.style.left = percentX + '%';
+                textElement.style.top = percentY + '%';
+                textElement.style.transform = 'translate(-50%, -50%)';
+            }
+            
+            function onMouseUp() {
+                isDraggingText = false;
+                dragCellIndex = -1;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                
+                // Deactivate all position preset buttons
+                const positionButtons = document.querySelectorAll('.tab-button');
+                positionButtons.forEach(btn => {
+                    if (btn.textContent.includes('Top') || btn.textContent.includes('Center') || 
+                        btn.textContent.includes('Bottom') || btn.textContent.includes('Left') || 
+                        btn.textContent.includes('Right')) {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         }
         
         function updateMergeUI() {
@@ -2720,28 +2780,37 @@
                         max-width: 90%;
                         word-wrap: break-word;
                         text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-                        pointer-events: none;
+                        cursor: move;
+                        user-select: none;
+                        pointer-events: auto;
                     `;
                     
                     let positionStyle = '';
-                    switch(item.text.position) {
-                        case 'top':
-                            positionStyle = 'top: 10px; left: 50%; transform: translateX(-50%);';
-                            break;
-                        case 'bottom':
-                            positionStyle = 'bottom: 10px; left: 50%; transform: translateX(-50%);';
-                            break;
-                        case 'left':
-                            positionStyle = 'left: 10px; top: 50%; transform: translateY(-50%); text-align: left;';
-                            break;
-                        case 'right':
-                            positionStyle = 'right: 10px; top: 50%; transform: translateY(-50%); text-align: right;';
-                            break;
-                        default: // center
-                            positionStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+                    
+                    // Check if custom position exists
+                    if (item.text.customX !== undefined && item.text.customY !== undefined) {
+                        positionStyle = `left: ${item.text.customX}%; top: ${item.text.customY}%; transform: translate(-50%, -50%);`;
+                    } else {
+                        // Use preset positions
+                        switch(item.text.position) {
+                            case 'top':
+                                positionStyle = 'top: 10px; left: 50%; transform: translateX(-50%);';
+                                break;
+                            case 'bottom':
+                                positionStyle = 'bottom: 10px; left: 50%; transform: translateX(-50%);';
+                                break;
+                            case 'left':
+                                positionStyle = 'left: 10px; top: 50%; transform: translateY(-50%); text-align: left;';
+                                break;
+                            case 'right':
+                                positionStyle = 'right: 10px; top: 50%; transform: translateY(-50%); text-align: right;';
+                                break;
+                            default: // center
+                                positionStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+                        }
                     }
                     
-                    html += `<div style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
+                    html += `<div class="draggable-text" data-cell-index="${index}" onmousedown="startDragText(event, ${index})" style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
                 }
                 
                 html += `</div>`;
@@ -2829,28 +2898,35 @@
                     let textX, textY;
                     const padding = 20;
                     
-                    switch(item.text.position) {
-                        case 'top':
-                            textX = x + cellWidth / 2;
-                            textY = y + item.text.size + padding;
-                            break;
-                        case 'bottom':
-                            textX = x + cellWidth / 2;
-                            textY = y + cellHeight - padding;
-                            break;
-                        case 'left':
-                            textX = x + padding;
-                            textY = y + cellHeight / 2;
-                            ctx.textAlign = 'left';
-                            break;
-                        case 'right':
-                            textX = x + cellWidth - padding;
-                            textY = y + cellHeight / 2;
-                            ctx.textAlign = 'right';
-                            break;
-                        default: // center
-                            textX = x + cellWidth / 2;
-                            textY = y + cellHeight / 2;
+                    // Check for custom position first
+                    if (item.text.customX !== undefined && item.text.customY !== undefined) {
+                        textX = x + (cellWidth * item.text.customX / 100);
+                        textY = y + (cellHeight * item.text.customY / 100);
+                    } else {
+                        // Use preset positions
+                        switch(item.text.position) {
+                            case 'top':
+                                textX = x + cellWidth / 2;
+                                textY = y + item.text.size + padding;
+                                break;
+                            case 'bottom':
+                                textX = x + cellWidth / 2;
+                                textY = y + cellHeight - padding;
+                                break;
+                            case 'left':
+                                textX = x + padding;
+                                textY = y + cellHeight / 2;
+                                ctx.textAlign = 'left';
+                                break;
+                            case 'right':
+                                textX = x + cellWidth - padding;
+                                textY = y + cellHeight / 2;
+                                ctx.textAlign = 'right';
+                                break;
+                            default: // center
+                                textX = x + cellWidth / 2;
+                                textY = y + cellHeight / 2;
+                        }
                     }
                     
                     // Wrap text if too long
