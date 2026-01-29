@@ -762,11 +762,19 @@
                                     <div style="margin-bottom: 20px;">
                                         <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Image Fit</label>
                                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                            <button class="tab-button" id="fit-cover" onclick="setImageFit('cover')" style="flex: 1; font-size: 10px;">Cover</button>
-                                            <button class="tab-button active" id="fit-contain" onclick="setImageFit('contain')" style="flex: 1; font-size: 10px;">Contain</button>
-                                            <button class="tab-button" id="fit-fill" onclick="setImageFit('fill')" style="flex: 1; font-size: 10px;">Fill</button>
-                                            <button class="tab-button" id="fit-scale" onclick="setImageFit('scale')" style="flex: 1; font-size: 10px;">Scale Down</button>
+                                            <button class="tab-button" id="fit-cover" onclick="setImageFit('cover')" style="flex: 1; font-size: 10px;" title="Scales image to cover entire cell (may crop edges)">Cover</button>
+                                            <button class="tab-button active" id="fit-contain" onclick="setImageFit('contain')" style="flex: 1; font-size: 10px;" title="Scales image to fit within cell (maintains aspect ratio, adds padding)">Contain</button>
+                                            <button class="tab-button" id="fit-fill" onclick="setImageFit('fill')" style="flex: 1; font-size: 10px;" title="Stretches image to fill entire cell (may distort)">Fill</button>
+                                            <button class="tab-button" id="fit-scale" onclick="setImageFit('scale')" style="flex: 1; font-size: 10px;" title="Like Contain, but won't enlarge small images">Scale Down</button>
                                         </div>
+                                        <p style="margin-top: 8px; font-size: 10px; color: #6FC3DF; line-height: 1.4;" id="fit-description">
+                                            Scales to fit within cell, maintains aspect ratio
+                                        </p>
+                                    </div>
+                                    
+                                    <!-- Output Dimensions Display -->
+                                    <div id="output-dimensions" style="margin-bottom: 15px; padding: 10px; background: #161b22; border-radius: 4px; font-size: 11px; color: #8b949e; display: none;">
+                                        <strong style="color: #c9d1d9;">Final Size:</strong> <span id="dimensions-text"></span>
                                     </div>
                                 </div>
                             </div>
@@ -2364,6 +2372,15 @@
             document.querySelectorAll('[id^="fit-"]').forEach(btn => btn.classList.remove('active'));
             document.getElementById('fit-' + fit).classList.add('active');
             
+            // Update description
+            const descriptions = {
+                'cover': 'Scales to cover entire cell, may crop edges',
+                'contain': 'Scales to fit within cell, maintains aspect ratio',
+                'fill': 'Stretches to fill entire cell, may distort image',
+                'scale': 'Like Contain, but won\'t enlarge small images'
+            };
+            document.getElementById('fit-description').textContent = descriptions[fit];
+            
             updateMergePreview();
         }
         
@@ -2373,50 +2390,17 @@
             updateMergePreview();
         }
         
-        function updateMergePreview() {
-            if (mergeImages.length === 0) {
-                document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
-                return;
-            }
-            
-            const preview = document.getElementById('merge-preview');
-            
-            // Build grid style based on merge direction
-            let gridStyle = 'display: grid; gap: 10px; width: 100%;';
-            
-            if (mergeDirection === 'horizontal') {
-                gridStyle += ` grid-template-columns: repeat(${mergeImages.length}, 1fr); grid-auto-rows: 1fr;`;
-            } else if (mergeDirection === 'vertical') {
-                gridStyle += ` grid-template-columns: 1fr; grid-template-rows: repeat(${mergeImages.length}, 1fr);`;
-            } else { // grid (default)
-                gridStyle += ` grid-template-columns: repeat(${gridColumns}, 1fr);`;
-            }
-            
-            let html = `<div style="${gridStyle}">`;
-            
-            mergeImages.forEach(img => {
-                const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
-                html += `<div style="border: 1px solid #30363d; border-radius: 4px; overflow: hidden; aspect-ratio: 1;">`;
-                html += `<img src="${img.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle};">`;
-                html += `</div>`;
-            });
-            
-            html += '</div>';
-            preview.innerHTML = html;
-        }
-        
-        async function downloadMergedImage() {
-            if (mergeImages.length === 0) return;
-            
-            // Calculate canvas dimensions
-            let canvasWidth, canvasHeight;
-            let cellWidth = 0, cellHeight = 0;
+        function calculateMergeDimensions() {
+            if (mergeImages.length === 0) return null;
             
             // Find max dimensions for cell sizing
+            let cellWidth = 0, cellHeight = 0;
             mergeImages.forEach(img => {
                 cellWidth = Math.max(cellWidth, img.width);
                 cellHeight = Math.max(cellHeight, img.height);
             });
+            
+            let canvasWidth, canvasHeight;
             
             if (mergeDirection === 'horizontal') {
                 canvasWidth = cellWidth * mergeImages.length;
@@ -2429,6 +2413,75 @@
                 canvasWidth = cellWidth * gridColumns;
                 canvasHeight = cellHeight * rows;
             }
+            
+            return { width: canvasWidth, height: canvasHeight, cellWidth, cellHeight };
+        }
+        
+        function updateMergePreview() {
+            if (mergeImages.length === 0) {
+                document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+                document.getElementById('output-dimensions').style.display = 'none';
+                return;
+            }
+            
+            const dims = calculateMergeDimensions();
+            const preview = document.getElementById('merge-preview');
+            
+            // Show final dimensions
+            const dimsDisplay = document.getElementById('output-dimensions');
+            dimsDisplay.style.display = 'block';
+            document.getElementById('dimensions-text').textContent = `${dims.width} × ${dims.height}px`;
+            
+            // Calculate preview container aspect ratio to match final output
+            const aspectRatio = dims.width / dims.height;
+            const maxWidth = 900; // max preview width
+            const maxHeight = 600; // max preview height
+            
+            let previewWidth, previewHeight;
+            if (aspectRatio > maxWidth / maxHeight) {
+                // Width constrained
+                previewWidth = maxWidth;
+                previewHeight = maxWidth / aspectRatio;
+            } else {
+                // Height constrained
+                previewHeight = maxHeight;
+                previewWidth = maxHeight * aspectRatio;
+            }
+            
+            // Build grid style based on merge direction
+            let gridStyle = `display: grid; gap: 2px; width: ${previewWidth}px; height: ${previewHeight}px; margin: 0 auto;`;
+            
+            if (mergeDirection === 'horizontal') {
+                gridStyle += ` grid-template-columns: repeat(${mergeImages.length}, 1fr);`;
+            } else if (mergeDirection === 'vertical') {
+                gridStyle += ` grid-template-rows: repeat(${mergeImages.length}, 1fr);`;
+            } else { // grid (default)
+                const rows = Math.ceil(mergeImages.length / gridColumns);
+                gridStyle += ` grid-template-columns: repeat(${gridColumns}, 1fr); grid-template-rows: repeat(${rows}, 1fr);`;
+            }
+            
+            let html = `<div style="${gridStyle}">`;
+            
+            mergeImages.forEach(img => {
+                const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
+                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: #000;">`;
+                html += `<img src="${img.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle};">`;
+                html += `</div>`;
+            });
+            
+            html += '</div>';
+            preview.innerHTML = html;
+        }
+        
+        async function downloadMergedImage() {
+            if (mergeImages.length === 0) return;
+            
+            // Calculate canvas dimensions using shared function
+            const dims = calculateMergeDimensions();
+            const canvasWidth = dims.width;
+            const canvasHeight = dims.height;
+            const cellWidth = dims.cellWidth;
+            const cellHeight = dims.cellHeight;
             
             // Create canvas
             const canvas = document.createElement('canvas');
