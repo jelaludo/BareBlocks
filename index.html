@@ -1091,24 +1091,59 @@
                             nodeCount++;
                             if (!node || typeof node !== 'object') continue;
                             
-                            // Extract model
-                            if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
-                                if (node.inputs.unet_name) ai.model = node.inputs.unet_name;
-                                if (node.inputs.ckpt_name) ai.model = node.inputs.ckpt_name;
+                            // Extract data from node inputs (regardless of class_type)
+                            if (node.inputs && typeof node.inputs === 'object') {
+                                // Extract model
+                                if (node.inputs.unet_name && !ai.model) ai.model = node.inputs.unet_name;
+                                if (node.inputs.ckpt_name && !ai.model) ai.model = node.inputs.ckpt_name;
+                                
+                                // Extract sampler settings (if this node has them)
+                                if (node.inputs.sampler_name) {
+                                    ai.sampler = node.inputs.sampler_name;
+                                    ai.steps = node.inputs.steps || ai.steps;
+                                    ai.cfgScale = node.inputs.cfg || ai.cfgScale;
+                                    ai.seed = node.inputs.seed || ai.seed;
+                                }
+                                
+                                // Extract LoRA
+                                if (node.inputs.lora_name) {
+                                    if (!ai.loras.includes(node.inputs.lora_name)) {
+                                        ai.loras.push(node.inputs.lora_name);
+                                    }
+                                }
+                                
+                                // Extract text from positive/negative inputs
+                                if (typeof node.inputs.text === 'string' && node.inputs.text.length > 5) {
+                                    const isNegative = node.inputs.text.toLowerCase().includes('blurry') || 
+                                                      node.inputs.text.toLowerCase().includes('ugly') ||
+                                                      node.inputs.text.toLowerCase().includes('bad');
+                                    
+                                    if (isNegative && !ai.negativePrompt) {
+                                        ai.negativePrompt = node.inputs.text;
+                                    } else if (!isNegative && !promptFromNodes) {
+                                        promptFromNodes = node.inputs.text;
+                                    }
+                                }
                             }
                             
-                            // Extract sampler settings
-                            if (node.class_type === 'KSampler' && node.inputs) {
-                                ai.sampler = node.inputs.sampler_name || ai.sampler;
-                                ai.steps = node.inputs.steps || ai.steps;
-                                ai.cfgScale = node.inputs.cfg || ai.cfgScale;
-                                ai.seed = node.inputs.seed || ai.seed;
-                            }
-                            
-                            // Extract LoRAs
-                            if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
-                                if (!ai.loras.includes(node.inputs.lora_name)) {
-                                    ai.loras.push(node.inputs.lora_name);
+                            // Also check old method with class_type for compatibility
+                            if (node.class_type) {
+                                if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
+                                    if (node.inputs.unet_name) ai.model = node.inputs.unet_name;
+                                    if (node.inputs.ckpt_name) ai.model = node.inputs.ckpt_name;
+                                }
+                                
+                                if (node.class_type === 'KSampler' && node.inputs) {
+                                    ai.sampler = node.inputs.sampler_name || ai.sampler;
+                                    ai.steps = node.inputs.steps || ai.steps;
+                                    ai.cfgScale = node.inputs.cfg || ai.cfgScale;
+                                    ai.seed = node.inputs.seed || ai.seed;
+                                }
+                                
+                                if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
+                                    if (!ai.loras.includes(node.inputs.lora_name)) {
+                                        ai.loras.push(node.inputs.lora_name);
+                                    }
                                 }
                             }
                             
