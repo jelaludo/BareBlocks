@@ -1006,11 +1006,14 @@
             // Check PNG text chunks for workflow
             if (metadata.pngTextChunks) {
                 let workflowData = null;
+                let originalPrompt = null;
+                let promptFromNodes = null;
                 
+                // First pass: collect all prompts and workflow data
                 for (const chunk of metadata.pngTextChunks) {
                     const keyLower = chunk.keyword.toLowerCase();
                     
-                    console.log('Processing PNG chunk:', chunk.keyword);
+                    console.log('Processing PNG chunk:', chunk.keyword, 'length:', chunk.text.length);
                     
                     // Check for workflow JSON
                     if (keyLower.includes('workflow') || keyLower === 'workflow') {
@@ -1024,22 +1027,24 @@
                         }
                     }
                     
-                    // Check for prompt JSON (might be workflow nodes)
+                    // Check for prompt - could be JSON (workflow nodes) or text
                     if (keyLower === 'prompt') {
                         try {
                             const promptData = JSON.parse(chunk.text);
                             if (promptData && typeof promptData === 'object') {
-                                // This might be workflow nodes
+                                // This is workflow nodes JSON
                                 if (!workflowData) {
-                                    workflowData = { nodes: promptData };
+                                    workflowData = promptData;
                                     ai.workflow = workflowData;
                                     ai.hasComfyUI = true;
                                 }
+                                console.log('Prompt chunk contains workflow nodes JSON');
                             }
                         } catch (e) {
-                            // It's a text prompt
-                            if (!ai.prompt) {
-                                ai.prompt = chunk.text;
+                            // It's a text prompt - this is likely the original with wildcards
+                            console.log('Prompt chunk is text:', chunk.text.substring(0, 100));
+                            if (!originalPrompt) {
+                                originalPrompt = chunk.text;
                             }
                         }
                     }
@@ -1047,6 +1052,7 @@
                     // Check for resolved prompt
                     if (keyLower.includes('resolved') || keyLower === 'prompt_resolved') {
                         ai.resolvedPrompt = chunk.text;
+                        console.log('Found resolved prompt');
                     }
                     
                     // Check for negative prompt
@@ -1055,7 +1061,7 @@
                     }
                 }
                 
-                // Extract data from workflow
+                // Extract data from workflow nodes
                 if (workflowData) {
                     const nodes = workflowData.nodes || workflowData;
                     if (nodes && typeof nodes === 'object') {
@@ -1083,20 +1089,29 @@
                                 }
                             }
                             
-                            // Extract prompts from text encoding nodes
+                            // Extract prompts from text encoding nodes (backup if no text chunk)
                             if (node.class_type === 'CLIPTextEncode' && node.inputs && node.inputs.text) {
-                                if (typeof node.inputs.text === 'string' && node.inputs.text.length > 5) {
-                                    if (!ai.prompt && !node.inputs.text.toLowerCase().includes('negative')) {
-                                        ai.prompt = node.inputs.text;
-                                    }
-                                    if (!ai.negativePrompt && node.inputs.text.toLowerCase().includes('negative')) {
-                                        ai.negativePrompt = node.inputs.text;
+                                const nodeText = node.inputs.text;
+                                if (typeof nodeText === 'string' && nodeText.length > 5) {
+                                    // Check if this looks like a negative prompt
+                                    const isNegative = nodeText.toLowerCase().includes('blurry') || 
+                                                      nodeText.toLowerCase().includes('ugly') ||
+                                                      nodeText.toLowerCase().includes('bad quality');
+                                    
+                                    if (isNegative) {
+                                        if (!ai.negativePrompt) ai.negativePrompt = nodeText;
+                                    } else {
+                                        // This is a positive prompt - save as backup
+                                        if (!promptFromNodes) promptFromNodes = nodeText;
                                     }
                                 }
                             }
                         }
                     }
                 }
+                
+                // Prioritize prompts: original text chunk (with wildcards) > prompt from nodes
+                ai.prompt = originalPrompt || promptFromNodes;
                 
                 // Detect wildcards in prompt
                 if (ai.prompt) {
