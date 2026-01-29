@@ -510,6 +510,8 @@
             /* ComfyUI specific mobile styles */
             #section-comfyui .metadata-table td:first-child {
                 width: 35%;
+                max-width: 120px;
+                word-break: break-word;
             }
             
             #section-comfyui .metadata-table td:last-child {
@@ -595,7 +597,9 @@
             /* ComfyUI specific - narrower label column for more value space */
             #section-comfyui .metadata-table td:first-child {
                 width: 30%;
+                max-width: 100px;
                 font-size: 10px;
+                word-break: break-word;
             }
             
             #section-comfyui .metadata-table td:last-child {
@@ -661,10 +665,14 @@
             /* ComfyUI gets even narrower label on very small screens */
             #section-comfyui .metadata-table td:first-child {
                 width: 28%;
+                max-width: 80px;
+                font-size: 9px;
+                word-break: break-word;
             }
             
             #section-comfyui .metadata-table td:last-child {
                 width: 72%;
+                font-size: 9px;
             }
             
             .copy-icon, .copy-text-btn {
@@ -1531,6 +1539,27 @@
             return html;
         }
         
+        // Format wildcard name for display (shorten for mobile)
+        function formatWildcardName(name) {
+            // Remove common prefixes to save space
+            let formatted = name;
+            
+            // Remove __mklinkwildcards/ prefix if present
+            if (formatted.startsWith('__mklinkwildcards/')) {
+                formatted = formatted.substring('__mklinkwildcards/'.length);
+            }
+            
+            // Remove leading/trailing underscores (common in wildcard naming)
+            formatted = formatted.replace(/^_+|_+$/g, '');
+            
+            // If still very long (>30 chars), truncate with ellipsis
+            if (formatted.length > 30) {
+                formatted = formatted.substring(0, 27) + '...';
+            }
+            
+            return formatted;
+        }
+        
         // Create metadata table with expandable rows
         function createMetadataTableHTML(metadata, sectionType = '') {
             const sectionClass = sectionType ? `table-${sectionType}` : '';
@@ -1876,7 +1905,8 @@
                             html += `<tr><td colspan="2" style="padding-top: 10px; font-weight: bold; color: #6FC3DF;">Wildcard Resolutions</td></tr>`;
                             for (const wc of wildcards) {
                                 const wcResolved = unescapeUnicode(wc.resolved);
-                                html += `<tr><td style="padding-left: 20px;">${escapeHtml(wc.name)}</td><td>${escapeHtml(wcResolved)}</td></tr>`;
+                                const shortName = formatWildcardName(wc.name);
+                                html += `<tr><td style="padding-left: 20px;" title="${escapeHtml(wc.name)}">${escapeHtml(shortName)}</td><td>${escapeHtml(wcResolved)}</td></tr>`;
                             }
                         }
                     }
