@@ -1433,9 +1433,35 @@
         function displayMetadata(metadata) {
             let html = '<div class="output-line success">Metadata extracted successfully</div>';
             
-            // Smart Summary - adapts based on what metadata is found
-            html += '<div class="metadata-section"><div class="section-title" style="color: #6FC3DF;">Smart Summary</div>';
+            // Data Recap section - at the very top
+            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
+            html += createDataRecap(metadata);
+            html += '</div>';
+            
+            // Summary section (merged Smart Summary + regular Summary)
+            html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
             html += '<table class="metadata-table"><tbody>';
+            
+            // Always show these core fields first
+            html += `<tr><td>fileName</td><td>${escapeHtml(metadata.fileName)}</td></tr>`;
+            html += `<tr><td>containerType</td><td><span style="color: #FF6AC1; font-weight: bold;">${metadata.containerType}</span></td></tr>`;
+            html += `<tr><td>fileSize (MB)</td><td><span style="color: #FF6AC1; font-weight: bold;">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</span></td></tr>`;
+            
+            // Resolution
+            let width = null;
+            let height = null;
+            if (metadata.exif) {
+                width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
+                height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
+            }
+            if (width && height) {
+                html += `<tr><td>Resolution</td><td><span style="color: #FF6AC1; font-weight: bold;">${width}x${height}</span></td></tr>`;
+            }
+            
+            // Separator line
+            html += `<tr><td colspan="2" style="border-top: 1px solid #30363d; padding-top: 8px;"></td></tr>`;
+            
+            // Adaptive content based on metadata type
             
             // Camera metadata
             if (metadata.provenance === 'camera' && metadata.exif) {
@@ -1487,41 +1513,6 @@
                 html += `</td></tr>`;
             }
             
-            // Generic fallback
-            if (!metadata.exif && !metadata.aiMetadata?.hasComfyUI && !metadata.gps) {
-                html += `<tr><td colspan="2" style="color: #8b949e;">Limited metadata available</td></tr>`;
-            }
-            
-            html += '</tbody></table></div>';
-            
-            // Data Recap section - MOVED TO TOP
-            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
-            html += createDataRecap(metadata);
-            html += '</div>';
-            
-            // Summary section
-            html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
-            const summaryData = {
-                fileName: metadata.fileName
-            };
-            
-            // Get dimensions
-            let width = null;
-            let height = null;
-            if (metadata.exif) {
-                width = metadata.exif.ImageWidth || metadata.exif.PixelXDimension || metadata.exif['Image ImageWidth'];
-                height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
-            }
-            
-            // Build summary with special highlighting
-            html += '<table class="metadata-table"><tbody>';
-            html += `<tr><td>fileName</td><td>${escapeHtml(metadata.fileName)}</td></tr>`;
-            html += `<tr><td>containerType</td><td><span style="color: #FF6AC1; font-weight: bold;">${metadata.containerType}</span></td></tr>`;
-            html += `<tr><td>fileSize (b)</td><td>${metadata.fileSize.toLocaleString()}</td></tr>`;
-            html += `<tr><td>fileSize (MB)</td><td><span style="color: #FF6AC1; font-weight: bold;">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</span></td></tr>`;
-            if (width && height) {
-                html += `<tr><td>Resolution</td><td><span style="color: #FF6AC1; font-weight: bold;">${width} x ${height}</span></td></tr>`;
-            }
             html += '</tbody></table></div>';
             
             // ComfyUI Workflow section
