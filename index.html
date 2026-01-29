@@ -1447,7 +1447,7 @@
             html += `<tr><td>containerType</td><td><span style="color: #FF6AC1; font-weight: bold;">${metadata.containerType}</span></td></tr>`;
             html += `<tr><td>fileSize (MB)</td><td><span style="color: #FF6AC1; font-weight: bold;">${(metadata.fileSize / 1024 / 1024).toFixed(2)}</span></td></tr>`;
             
-            // Resolution
+            // Dimensions - ALWAYS show
             let width = null;
             let height = null;
             if (metadata.exif) {
@@ -1455,7 +1455,35 @@
                 height = metadata.exif.ImageLength || metadata.exif.PixelYDimension || metadata.exif['Image ImageLength'];
             }
             if (width && height) {
-                html += `<tr><td>Resolution</td><td><span style="color: #FF6AC1; font-weight: bold;">${width}x${height}</span></td></tr>`;
+                html += `<tr><td>Dimensions</td><td>${width} x ${height}</td></tr>`;
+            }
+            
+            // Date Created - ALWAYS show if available
+            if (metadata.exif) {
+                // Check multiple date fields in order of preference
+                let dateCreated = metadata.exif.DateTime || 
+                                 metadata.exif.DateTimeOriginal || 
+                                 metadata.exif.CreateDate ||
+                                 metadata.exif['306'] || // IFD0 DateTime tag
+                                 null;
+                
+                if (dateCreated) {
+                    // Format the date nicely
+                    let displayDate = dateCreated;
+                    if (dateCreated instanceof Date) {
+                        displayDate = dateCreated.toLocaleString();
+                    } else if (typeof dateCreated === 'string') {
+                        // Try to parse and format common EXIF date formats
+                        const dateMatch = dateCreated.match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+                        if (dateMatch) {
+                            // Convert EXIF format (YYYY:MM:DD HH:MM:SS) to readable format
+                            const [, year, month, day, hour, minute, second] = dateMatch;
+                            const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+                            displayDate = date.toLocaleString();
+                        }
+                    }
+                    html += `<tr><td>Date Created</td><td>${escapeHtml(String(displayDate))}</td></tr>`;
+                }
             }
             
             // Separator line
@@ -1463,28 +1491,43 @@
             
             // Adaptive content based on metadata type
             
-            // Camera metadata
-            if (metadata.provenance === 'camera' && metadata.exif) {
-                if (metadata.exif.Make || metadata.exif.Model) {
-                    const camera = [metadata.exif.Make, metadata.exif.Model].filter(Boolean).join(' ');
+            // Camera metadata - show if ANY camera data is found (not just if provenance is camera)
+            if (metadata.exif) {
+                // Camera Model (check multiple fields including IFD0 tag 272)
+                const cameraModel = metadata.exif.Model || metadata.exif['272'] || null;
+                const cameraMake = metadata.exif.Make || null;
+                
+                if (cameraModel || cameraMake) {
+                    const camera = [cameraMake, cameraModel].filter(Boolean).join(' ');
                     html += `<tr><td>Camera</td><td><span style="color: #FFA657; font-weight: bold;">${escapeHtml(camera)}</span></td></tr>`;
                 }
-                if (metadata.exif.LensModel) {
-                    html += `<tr><td>Lens</td><td>${escapeHtml(metadata.exif.LensModel)}</td></tr>`;
+                
+                // Lens Model (check EXIF tag 42036 and other fields)
+                const lensModel = metadata.exif.LensModel || 
+                                 metadata.exif['42036'] || 
+                                 metadata.exif.LensInfo ||
+                                 null;
+                
+                if (lensModel) {
+                    html += `<tr><td>Lens</td><td>${escapeHtml(String(lensModel))}</td></tr>`;
                 }
-                if (metadata.exif.FNumber) {
-                    html += `<tr><td>Aperture</td><td>f/${metadata.exif.FNumber}</td></tr>`;
-                }
-                if (metadata.exif.ExposureTime) {
-                    const exposure = metadata.exif.ExposureTime < 1 ? `1/${Math.round(1/metadata.exif.ExposureTime)}` : `${metadata.exif.ExposureTime}`;
-                    html += `<tr><td>Shutter Speed</td><td>${exposure}s</td></tr>`;
-                }
-                if (metadata.exif.ISO || metadata.exif.ISOSpeedRatings) {
-                    const iso = metadata.exif.ISO || metadata.exif.ISOSpeedRatings;
-                    html += `<tr><td>ISO</td><td>${iso}</td></tr>`;
-                }
-                if (metadata.exif.FocalLength) {
-                    html += `<tr><td>Focal Length</td><td>${metadata.exif.FocalLength}mm</td></tr>`;
+                
+                // Only show detailed camera settings if we have camera data
+                if (cameraModel || cameraMake || lensModel) {
+                    if (metadata.exif.FNumber) {
+                        html += `<tr><td>Aperture</td><td>f/${metadata.exif.FNumber}</td></tr>`;
+                    }
+                    if (metadata.exif.ExposureTime) {
+                        const exposure = metadata.exif.ExposureTime < 1 ? `1/${Math.round(1/metadata.exif.ExposureTime)}` : `${metadata.exif.ExposureTime}`;
+                        html += `<tr><td>Shutter Speed</td><td>${exposure}s</td></tr>`;
+                    }
+                    if (metadata.exif.ISO || metadata.exif.ISOSpeedRatings) {
+                        const iso = metadata.exif.ISO || metadata.exif.ISOSpeedRatings;
+                        html += `<tr><td>ISO</td><td>${iso}</td></tr>`;
+                    }
+                    if (metadata.exif.FocalLength) {
+                        html += `<tr><td>Focal Length</td><td>${metadata.exif.FocalLength}mm</td></tr>`;
+                    }
                 }
             }
             
