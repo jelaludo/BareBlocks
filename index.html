@@ -880,6 +880,20 @@
         </div>
     </div>
     
+    <!-- Text Edit Modal -->
+    <div id="text-edit-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div id="modal-content" style="background: #161b22; border: 2px solid #6FC3DF; border-radius: 8px; padding: 20px; width: 500px; max-width: 90%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <div id="modal-header" style="cursor: move; padding: 10px; margin: -20px -20px 15px -20px; background: #0d1117; border-bottom: 1px solid #30363d; border-radius: 6px 6px 0 0; user-select: none;">
+                <h3 style="margin: 0; color: #6FC3DF; font-size: 14px;">✏️ Edit Text</h3>
+            </div>
+            <textarea id="modal-text-input" style="width: 100%; min-height: 120px; padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; resize: vertical;" placeholder="Enter text..."></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+                <button onclick="closeTextModal(false)" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; font-size: 12px;">Cancel</button>
+                <button onclick="closeTextModal(true)" style="padding: 8px 16px; background: #238636; border: 1px solid #2ea043; border-radius: 4px; color: #fff; cursor: pointer; font-size: 12px; font-weight: bold;">Save</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Load exifr library from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/exifr@latest/dist/full.umd.js"></script>
     
@@ -2332,6 +2346,10 @@
         let selectedCellIndex = 0;
         let isDraggingText = false;
         let dragCellIndex = -1;
+        let modalCellIndex = -1;
+        let isDraggingModal = false;
+        let modalOffsetX = 0;
+        let modalOffsetY = 0;
         
         // Setup merge upload zone
         const mergeUploadZone = document.getElementById('mergeUploadZone');
@@ -2810,7 +2828,7 @@
                         }
                     }
                     
-                    html += `<div class="draggable-text" data-cell-index="${index}" onmousedown="startDragText(event, ${index})" style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
+                    html += `<div class="draggable-text" data-cell-index="${index}" onmousedown="startDragText(event, ${index})" ondblclick="openTextModal(${index})" style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
                 }
                 
                 html += `</div>`;
@@ -2819,6 +2837,95 @@
             html += '</div>';
             preview.innerHTML = html;
         }
+        
+        // Text Edit Modal Functions
+        function openTextModal(cellIndex) {
+            if (isDraggingText) return; // Don't open if we're dragging
+            
+            modalCellIndex = cellIndex;
+            const modal = document.getElementById('text-edit-modal');
+            const textInput = document.getElementById('modal-text-input');
+            
+            // Load current text
+            if (cellIndex >= 0 && cellIndex < mergeItems.length) {
+                textInput.value = mergeItems[cellIndex].text.content || '';
+            }
+            
+            // Show modal
+            modal.style.display = 'flex';
+            textInput.focus();
+            textInput.select();
+            
+            // Setup modal dragging
+            const modalContent = document.getElementById('modal-content');
+            const modalHeader = document.getElementById('modal-header');
+            
+            modalHeader.onmousedown = function(e) {
+                isDraggingModal = true;
+                const rect = modalContent.getBoundingClientRect();
+                modalOffsetX = e.clientX - rect.left;
+                modalOffsetY = e.clientY - rect.top;
+            };
+            
+            // Handle Enter key to save
+            textInput.onkeydown = function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    closeTextModal(true);
+                } else if (e.key === 'Escape') {
+                    closeTextModal(false);
+                }
+            };
+        }
+        
+        function closeTextModal(save) {
+            const modal = document.getElementById('text-edit-modal');
+            const textInput = document.getElementById('modal-text-input');
+            
+            if (save && modalCellIndex >= 0 && modalCellIndex < mergeItems.length) {
+                mergeItems[modalCellIndex].text.content = textInput.value;
+                
+                // Update the text input in the settings panel if this is the selected cell
+                if (modalCellIndex === selectedCellIndex) {
+                    document.getElementById('cell-text').value = textInput.value;
+                }
+                
+                updateMergePreview();
+            }
+            
+            modal.style.display = 'none';
+            modalCellIndex = -1;
+            
+            // Clean up
+            const modalContent = document.getElementById('modal-content');
+            modalContent.style.left = '';
+            modalContent.style.top = '';
+            modalContent.style.transform = '';
+        }
+        
+        // Setup modal dragging globally
+        document.addEventListener('mousemove', function(e) {
+            if (isDraggingModal) {
+                const modalContent = document.getElementById('modal-content');
+                modalContent.style.position = 'fixed';
+                modalContent.style.left = (e.clientX - modalOffsetX) + 'px';
+                modalContent.style.top = (e.clientY - modalOffsetY) + 'px';
+                modalContent.style.transform = 'none';
+            }
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (isDraggingModal) {
+                isDraggingModal = false;
+            }
+        });
+        
+        // Close modal when clicking outside
+        document.getElementById('text-edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTextModal(false);
+            }
+        });
         
         async function downloadMergedImage() {
             if (mergeItems.length === 0) return;
