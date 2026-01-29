@@ -970,6 +970,14 @@
                 const metadata = await extractMetadata(file);
                 currentMetadata = metadata;
                 
+                // Cache metadata for potential use in Image Merger
+                imageMetadataCache.set(file.name, {
+                    metadata: metadata,
+                    file: file,
+                    timestamp: Date.now()
+                });
+                console.log(`Cached metadata for: ${file.name}`);
+                
                 // Display results
                 displayMetadata(metadata);
                 
@@ -2335,7 +2343,10 @@
         // IMAGE MERGER FUNCTIONALITY
         // ========================================
         
-        let mergeItems = []; // Array of {type: 'image'|'empty', data, text}
+        // Global metadata cache for cross-tab integration
+        let imageMetadataCache = new Map(); // Maps file.name -> metadata object
+        
+        let mergeItems = []; // Array of {type: 'image'|'empty', data, text, metadata}
         let mergeDirection = 'grid';
         let imageFit = 'contain';
         let gridColumns = 2;
@@ -2349,6 +2360,59 @@
         let isDraggingModal = false;
         let modalOffsetX = 0;
         let modalOffsetY = 0;
+        
+        // Generate metadata summary text for empty cells
+        function generateMetadataSummary(metadata) {
+            if (!metadata) return '';
+            
+            let summary = [];
+            
+            // File info
+            if (metadata.fileName) {
+                summary.push(metadata.fileName);
+            }
+            
+            // Container type and size
+            if (metadata.containerType) {
+                summary.push(`${metadata.containerType.toUpperCase()}`);
+            }
+            if (metadata.fileSize) {
+                const sizeMB = (metadata.fileSize / (1024 * 1024)).toFixed(2);
+                summary.push(`${sizeMB} MB`);
+            }
+            
+            // Dimensions
+            if (metadata.exif?.ImageWidth && metadata.exif?.ImageHeight) {
+                summary.push(`${metadata.exif.ImageWidth} × ${metadata.exif.ImageHeight}`);
+            }
+            
+            // Camera/Lens (flatten EXIF like we do in Summary)
+            let allExifData = {};
+            if (metadata.exif) {
+                allExifData = { ...metadata.exif };
+                if (metadata.exif.ifd0) Object.assign(allExifData, metadata.exif.ifd0);
+                if (metadata.exif.exif) Object.assign(allExifData, metadata.exif.exif);
+            }
+            
+            if (allExifData.Make || allExifData.Model) {
+                const camera = [allExifData.Make, allExifData.Model].filter(x => x).join(' ').trim();
+                if (camera) summary.push(`📷 ${camera}`);
+            }
+            if (allExifData.LensModel) {
+                summary.push(`🔍 ${allExifData.LensModel}`);
+            }
+            
+            // AI metadata
+            if (metadata.aiMetadata) {
+                const ai = metadata.aiMetadata;
+                if (ai.hasComfyUI) {
+                    summary.push('🤖 ComfyUI');
+                    if (ai.model) summary.push(`Model: ${ai.model}`);
+                }
+            }
+            
+            return summary.join('\n');
+        }
         
         // Setup merge upload zone (preview container)
         const mergePreviewContainer = document.getElementById('merge-preview-container');
@@ -2384,11 +2448,35 @@
             });
         }
         
-        function handleMergeFiles(files) {
+        async function handleMergeFiles(files) {
             if (!files || files.length === 0) return;
             
             for (const file of files) {
                 if (!file.type.startsWith('image/')) continue;
+                
+                // Extract metadata for this image
+                let metadata = null;
+                
+                // Check if already in cache
+                if (imageMetadataCache.has(file.name)) {
+                    console.log(`Using cached metadata for: ${file.name}`);
+                    metadata = imageMetadataCache.get(file.name).metadata;
+                } else {
+                    // Extract fresh metadata
+                    try {
+                        console.log(`Extracting metadata for: ${file.name}`);
+                        metadata = await extractMetadata(file);
+                        
+                        // Cache it
+                        imageMetadataCache.set(file.name, {
+                            metadata: metadata,
+                            file: file,
+                            timestamp: Date.now()
+                        });
+                    } catch (error) {
+                        console.error(`Failed to extract metadata for ${file.name}:`, error);
+                    }
+                }
                 
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -2401,6 +2489,7 @@
                             img: img,
                             width: img.width,
                             height: img.height,
+                            metadata: metadata, // Attach metadata
                             text: {
                                 content: '',
                                 font: 'Arial, sans-serif',
@@ -2456,14 +2545,17 @@
                 // Apply pattern
                 images.forEach((img, index) => {
                     if (emptyCellPattern === 'before') {
-                        // Add empty cell before each image with placeholder text
+                        // Add empty cell before each image
+                        // Use metadata from the image that follows
+                        const metadataSummary = img.metadata ? generateMetadataSummary(img.metadata) : 'Text Here';
+                        
                         mergeItems.push({
                             type: 'empty',
                             color: emptyCellColor,
                             text: {
-                                content: 'Text Here',
+                                content: metadataSummary,
                                 font: 'Arial, sans-serif',
-                                size: 48,
+                                size: 14,
                                 color: '#000000',
                                 position: 'center',
                                 opacity: 1.0
@@ -2472,14 +2564,17 @@
                     }
                     mergeItems.push(img);
                     if (emptyCellPattern === 'after') {
-                        // Add empty cell after each image with placeholder text
+                        // Add empty cell after each image
+                        // Use metadata from the image that precedes
+                        const metadataSummary = img.metadata ? generateMetadataSummary(img.metadata) : 'Text Here';
+                        
                         mergeItems.push({
                             type: 'empty',
                             color: emptyCellColor,
                             text: {
-                                content: 'Text Here',
+                                content: metadataSummary,
                                 font: 'Arial, sans-serif',
-                                size: 48,
+                                size: 14,
                                 color: '#000000',
                                 position: 'center',
                                 opacity: 1.0
