@@ -1427,45 +1427,27 @@
                 html += '<div class="metadata-section" id="section-comfyui"><div class="section-title category-ai">ComfyUI Workflow</div>';
                 html += '<table class="metadata-table"><tbody>';
                 
-                // Extract workflow details
-                const workflow = metadata.aiMetadata.workflow;
-                let model = null;
-                let sampler = null;
-                let steps = null;
-                let cfgScale = null;
-                let seed = null;
-                let loras = [];
+                // Debug: Log what we have
+                console.log('=== ComfyUI Display Debug ===');
+                console.log('aiMetadata:', metadata.aiMetadata);
+                console.log('prompt:', metadata.aiMetadata.prompt);
+                console.log('model:', metadata.aiMetadata.model);
+                console.log('sampler:', metadata.aiMetadata.sampler);
+                console.log('steps:', metadata.aiMetadata.steps);
+                console.log('cfgScale:', metadata.aiMetadata.cfgScale);
+                console.log('seed:', metadata.aiMetadata.seed);
+                console.log('loras:', metadata.aiMetadata.loras);
+                console.log('wildcards:', metadata.aiMetadata.wildcards);
+                console.log('resolvedPrompt:', metadata.aiMetadata.resolvedPrompt);
+                console.log('negativePrompt:', metadata.aiMetadata.negativePrompt);
                 
-                if (workflow) {
-                    // Parse workflow nodes
-                    const nodes = workflow.nodes || workflow;
-                    if (nodes && typeof nodes === 'object') {
-                        for (const [nodeId, node] of Object.entries(nodes)) {
-                            if (!node || typeof node !== 'object') continue;
-                            
-                            // Extract model
-                            if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
-                                if (node.inputs.unet_name) model = node.inputs.unet_name;
-                                if (node.inputs.ckpt_name) model = node.inputs.ckpt_name;
-                            }
-                            
-                            // Extract sampler
-                            if (node.class_type === 'KSampler' && node.inputs) {
-                                sampler = node.inputs.sampler_name || sampler;
-                                steps = node.inputs.steps || steps;
-                                cfgScale = node.inputs.cfg || cfgScale;
-                                seed = node.inputs.seed || seed;
-                            }
-                            
-                            // Extract LoRAs
-                            if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
-                                if (!loras.includes(node.inputs.lora_name)) {
-                                    loras.push(node.inputs.lora_name);
-                                }
-                            }
-                        }
-                    }
-                }
+                // Use data from metadata.aiMetadata (already extracted)
+                const model = metadata.aiMetadata.model;
+                const sampler = metadata.aiMetadata.sampler;
+                const steps = metadata.aiMetadata.steps;
+                const cfgScale = metadata.aiMetadata.cfgScale;
+                const seed = metadata.aiMetadata.seed;
+                const loras = metadata.aiMetadata.loras || [];
                 
                 // Display all fields directly (no collapsing)
                 if (model) html += `<tr><td>Model</td><td>${escapeHtml(model)}</td></tr>`;
@@ -1516,8 +1498,8 @@
                 }
                 
                 // Display nodes count if available
-                if (workflow && (workflow.nodes || workflow)) {
-                    const nodes = workflow.nodes || workflow;
+                if (metadata.aiMetadata.workflow) {
+                    const nodes = metadata.aiMetadata.workflow.nodes || metadata.aiMetadata.workflow;
                     const nodeCount = Object.keys(nodes).length;
                     html += `<tr><td>Nodes</td><td>${nodeCount} nodes</td></tr>`;
                 }
