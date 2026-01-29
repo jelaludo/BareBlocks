@@ -817,14 +817,16 @@
                         <div style="flex: 1; min-width: 400px;">
                             <div class="metadata-section" style="min-height: 500px;">
                                 <div class="section-title">Preview & Upload</div>
-                                <div id="merge-preview-container" class="upload-zone" style="padding: 20px; text-align: center; min-height: 450px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+                                <div id="merge-preview-container" class="upload-zone" style="padding: 20px; text-align: center; min-height: 450px; cursor: pointer; position: relative;">
                                     <input type="file" id="mergeFileInput" accept="image/*" multiple style="display: none;">
-                                    <div id="merge-preview" style="width: 100%; height: 100%;">
-                                        <div class="upload-icon" style="font-size: 48px; margin-bottom: 20px;">[   ]</div>
-                                        <div style="font-size: 14px; color: #c9d1d9; margin-bottom: 10px;">Click or drag files here to merge</div>
-                                        <div class="info" style="font-size: 11px;">
-                                            Supports: JPEG, PNG, TIFF, HEIC<br>
-                                            All processing happens in your browser
+                                    <div id="merge-preview" style="width: 100%; min-height: 410px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="text-align: center;">
+                                            <div class="upload-icon" style="font-size: 48px; margin-bottom: 20px;">[   ]</div>
+                                            <div style="font-size: 14px; color: #c9d1d9; margin-bottom: 10px;">Click or drag files here to merge</div>
+                                            <div class="info" style="font-size: 11px;">
+                                                Supports: JPEG, PNG, TIFF, HEIC<br>
+                                                All processing happens in your browser
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2769,14 +2771,32 @@
         }
         
         function updateMergePreview() {
+            const preview = document.getElementById('merge-preview');
+            
             if (mergeItems.length === 0) {
-                document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+                preview.style.display = 'flex';
+                preview.style.alignItems = 'center';
+                preview.style.justifyContent = 'center';
+                preview.innerHTML = `
+                    <div style="text-align: center;">
+                        <div class="upload-icon" style="font-size: 48px; margin-bottom: 20px;">[   ]</div>
+                        <div style="font-size: 14px; color: #c9d1d9; margin-bottom: 10px;">Click or drag files here to merge</div>
+                        <div class="info" style="font-size: 11px;">
+                            Supports: JPEG, PNG, TIFF, HEIC<br>
+                            All processing happens in your browser
+                        </div>
+                    </div>
+                `;
                 document.getElementById('output-dimensions').style.display = 'none';
                 return;
             }
             
+            // Reset to normal display for preview grid
+            preview.style.display = 'block';
+            preview.style.alignItems = '';
+            preview.style.justifyContent = '';
+            
             const dims = calculateMergeDimensions();
-            const preview = document.getElementById('merge-preview');
             
             // Show final dimensions
             const dimsDisplay = document.getElementById('output-dimensions');
