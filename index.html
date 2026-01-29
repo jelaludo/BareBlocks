@@ -1410,11 +1410,17 @@
             // ComfyUI Workflow section
             if (metadata.aiMetadata && metadata.aiMetadata.hasComfyUI) {
                 html += '<div class="metadata-section" id="section-comfyui"><div class="section-title category-ai">ComfyUI Workflow</div>';
-                
-                const comfyuiData = {};
+                html += '<table class="metadata-table"><tbody>';
                 
                 // Extract workflow details
                 const workflow = metadata.aiMetadata.workflow;
+                let model = null;
+                let sampler = null;
+                let steps = null;
+                let cfgScale = null;
+                let seed = null;
+                let loras = [];
+                
                 if (workflow) {
                     // Parse workflow nodes
                     const nodes = workflow.nodes || workflow;
@@ -1424,69 +1430,84 @@
                             
                             // Extract model
                             if ((node.class_type === 'UNETLoader' || node.class_type === 'CheckpointLoaderSimple') && node.inputs) {
-                                if (node.inputs.unet_name) comfyuiData.Model = node.inputs.unet_name;
-                                if (node.inputs.ckpt_name) comfyuiData.Model = node.inputs.ckpt_name;
+                                if (node.inputs.unet_name) model = node.inputs.unet_name;
+                                if (node.inputs.ckpt_name) model = node.inputs.ckpt_name;
                             }
                             
                             // Extract sampler
                             if (node.class_type === 'KSampler' && node.inputs) {
-                                if (node.inputs.sampler_name) comfyuiData.Sampler = node.inputs.sampler_name;
-                                if (node.inputs.steps) comfyuiData.Steps = node.inputs.steps;
-                                if (node.inputs.cfg) comfyuiData['CFG Scale'] = node.inputs.cfg;
-                                if (node.inputs.seed) comfyuiData.Seed = node.inputs.seed;
+                                sampler = node.inputs.sampler_name || sampler;
+                                steps = node.inputs.steps || steps;
+                                cfgScale = node.inputs.cfg || cfgScale;
+                                seed = node.inputs.seed || seed;
                             }
                             
                             // Extract LoRAs
                             if (node.class_type === 'LoraLoader' && node.inputs && node.inputs.lora_name) {
-                                if (!comfyuiData.LoRA) comfyuiData.LoRA = [];
-                                comfyuiData.LoRA.push(node.inputs.lora_name);
+                                if (!loras.includes(node.inputs.lora_name)) {
+                                    loras.push(node.inputs.lora_name);
+                                }
                             }
                         }
                     }
-                    
-                    // Convert LoRA array to string
-                    if (comfyuiData.LoRA && Array.isArray(comfyuiData.LoRA)) {
-                        comfyuiData.LoRA = comfyuiData.LoRA.join(', ');
-                    }
                 }
                 
-                // Add prompt
+                // Display all fields directly (no collapsing)
+                if (model) html += `<tr><td>Model</td><td>${escapeHtml(model)}</td></tr>`;
+                if (loras.length > 0) html += `<tr><td>LoRA</td><td>${escapeHtml(loras.join(', '))}</td></tr>`;
+                if (sampler) html += `<tr><td>Sampler</td><td class="category-ai">${escapeHtml(sampler)}</td></tr>`;
+                if (steps) html += `<tr><td>Steps</td><td class="category-ai">${steps}</td></tr>`;
+                if (cfgScale) html += `<tr><td>CFG Scale</td><td>${cfgScale}</td></tr>`;
+                if (seed) html += `<tr><td>Seed</td><td>${seed}</td></tr>`;
+                
+                // Display prompt with copy button
                 if (metadata.aiMetadata.prompt) {
-                    comfyuiData.Prompt = unescapeUnicode(metadata.aiMetadata.prompt);
+                    const promptText = unescapeUnicode(metadata.aiMetadata.prompt);
+                    const promptEncoded = btoa(unescape(encodeURIComponent(promptText)));
+                    html += `<tr><td>Prompt</td><td>${escapeHtml(promptText)}<br><span class="copy-text-btn" data-text-encoded="${promptEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
                 }
                 
                 // Count wildcards
                 const wildcardCount = metadata.aiMetadata.wildcards ? metadata.aiMetadata.wildcards.length : 0;
-                comfyuiData['Wildcards Used'] = wildcardCount;
+                html += `<tr><td>Wildcards Used</td><td>${wildcardCount}</td></tr>`;
                 
                 const resolvedPrompt = metadata.aiMetadata.resolvedPrompt;
-                comfyuiData['Wildcard result'] = resolvedPrompt ? 'resolution saved' : 'resolution not saved';
+                html += `<tr><td>Wildcard result</td><td>${resolvedPrompt ? 'resolution saved' : 'resolution not saved'}</td></tr>`;
                 
-                // Add resolved prompt if available
+                // Display resolved prompt if available
                 if (resolvedPrompt) {
-                    comfyuiData['Resolved Prompt'] = unescapeUnicode(resolvedPrompt);
+                    const resolvedText = unescapeUnicode(resolvedPrompt);
+                    const resolvedEncoded = btoa(unescape(encodeURIComponent(resolvedText)));
+                    html += `<tr><td>Resolved Prompt</td><td>${escapeHtml(resolvedText)}<br><span class="copy-text-btn" data-text-encoded="${resolvedEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
                     
-                    // Extract wildcard resolutions
+                    // Extract and display wildcard resolutions
                     if (metadata.aiMetadata.prompt && wildcardCount > 0) {
                         const wildcards = extractWildcards(metadata.aiMetadata.prompt, resolvedPrompt);
                         if (wildcards.length > 0) {
-                            const wildcardResolutions = {};
+                            html += `<tr><td colspan="2" style="padding-top: 10px; font-weight: bold; color: #6FC3DF;">Wildcard Resolutions</td></tr>`;
                             for (const wc of wildcards) {
-                                wildcardResolutions[wc.name] = unescapeUnicode(wc.resolved);
+                                const wcResolved = unescapeUnicode(wc.resolved);
+                                html += `<tr><td style="padding-left: 20px;">${escapeHtml(wc.name)}</td><td>${escapeHtml(wcResolved)}</td></tr>`;
                             }
-                            comfyuiData['Wildcard Resolutions'] = wildcardResolutions;
                         }
                     }
                 }
                 
-                // Add nodes count
-                if (workflow && (workflow.nodes || workflow)) {
-                    const nodes = workflow.nodes || workflow;
-                    comfyuiData.Nodes = `${Object.keys(nodes).length} nodes`;
+                // Display negative prompt if available
+                if (metadata.aiMetadata.negativePrompt) {
+                    const negPromptText = unescapeUnicode(metadata.aiMetadata.negativePrompt);
+                    const negPromptEncoded = btoa(unescape(encodeURIComponent(negPromptText)));
+                    html += `<tr><td>Negative Prompt</td><td>${escapeHtml(negPromptText)}<br><span class="copy-text-btn" data-text-encoded="${negPromptEncoded}" style="cursor:pointer; color:#6FC3DF; font-size:10px;">[ Copy ]</span></td></tr>`;
                 }
                 
-                html += createMetadataTableHTML(comfyuiData, 'comfyui');
-                html += '</div>';
+                // Display nodes count if available
+                if (workflow && (workflow.nodes || workflow)) {
+                    const nodes = workflow.nodes || workflow;
+                    const nodeCount = Object.keys(nodes).length;
+                    html += `<tr><td>Nodes</td><td>${nodeCount} nodes</td></tr>`;
+                }
+                
+                html += '</tbody></table></div>';
             }
             
             // Encryption and AI section (for non-ComfyUI AI metadata)
