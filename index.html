@@ -859,20 +859,34 @@ Everything stays client-side</div></div>
                                 <div class="section-title">Settings</div>
                                 
                                 <div style="padding: 15px;">
-                                    <!-- Merge Direction -->
+                                    <!-- Layout Mode -->
                                     <div style="margin-bottom: 20px;">
-                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Merge Direction</label>
-                                        <div style="display: flex; gap: 8px;">
-                                            <button class="tab-button" id="merge-horizontal" onclick="setMergeDirection('horizontal')" style="flex: 1; font-size: 11px;">→ Horizontal</button>
-                                            <button class="tab-button" id="merge-vertical" onclick="setMergeDirection('vertical')" style="flex: 1; font-size: 11px;">↓ Vertical</button>
-                                            <button class="tab-button active" id="merge-grid" onclick="setMergeDirection('grid')" style="flex: 1; font-size: 11px;">⊞ Grid</button>
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Layout Mode</label>
+                                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                            <button class="tab-button active" id="merge-auto-grid" onclick="setMergeLayout('auto-grid')" style="flex: 1; min-width: 120px; font-size: 11px;">Auto Grid</button>
+                                            <button class="tab-button" id="merge-grid" onclick="setMergeDirection('grid')" style="flex: 1; min-width: 120px; font-size: 11px;">Manual Grid</button>
+                                            <button class="tab-button" id="merge-horizontal" onclick="setMergeDirection('horizontal')" style="flex: 1; min-width: 120px; font-size: 11px;">→ Horizontal</button>
+                                            <button class="tab-button" id="merge-vertical" onclick="setMergeDirection('vertical')" style="flex: 1; min-width: 120px; font-size: 11px;">↓ Vertical</button>
                                         </div>
+                                        <div class="info" style="margin-top: 8px; font-size: 10px;">Auto Grid adapts to image count. Manual Grid uses the slider below.</div>
+                                    </div>
+
+                                    <!-- Layout Templates -->
+                                    <div style="margin-bottom: 20px;">
+                                        <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Layout Templates</label>
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                                            <button class="tab-button" id="template-hero-left" onclick="setMergeLayout('hero-left')" style="font-size: 11px;">Hero Left (1+3)</button>
+                                            <button class="tab-button" id="template-hero-top" onclick="setMergeLayout('hero-top')" style="font-size: 11px;">Hero Top (1+3)</button>
+                                            <button class="tab-button" id="template-spotlight" onclick="setMergeLayout('spotlight')" style="font-size: 11px;">Spotlight (1+2)</button>
+                                            <button class="tab-button" id="template-split" onclick="setMergeLayout('split')" style="font-size: 11px;">Split Mix</button>
+                                        </div>
+                                        <div class="info" style="margin-top: 8px; font-size: 10px;">Templates adapt as you add/remove images. For higher counts, it falls back to Auto Grid.</div>
                                     </div>
                                     
                                     <!-- Grid Columns (only for grid mode) -->
                                     <div id="grid-columns-container" style="margin-bottom: 20px;">
                                         <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 12px;">Grid Columns: <span id="grid-columns-value">2</span></label>
-                                        <input type="range" id="grid-columns" min="1" max="6" value="2" style="width: 100%;" onchange="updateGridColumns(this.value)">
+                                        <input type="range" id="grid-columns" min="1" max="6" value="2" style="width: 100%;" oninput="updateGridColumns(this.value)">
                                     </div>
                                     
                                     <!-- Image Fit -->
@@ -985,7 +999,7 @@ Everything stays client-side</div></div>
                 </div>
                 <div>
                     <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Size: <span id="modal-text-size-value">48</span>px</label>
-                    <input type="range" id="modal-text-size" min="12" max="120" value="48" style="width: 100%;">
+                    <input type="range" id="modal-text-size" min="6" max="120" value="48" style="width: 100%;">
                 </div>
             </div>
             
@@ -2705,6 +2719,7 @@ Everything stays client-side</div></div>
         
         let mergeItems = []; // Array of {type: 'image'|'empty', data, text, metadata}
         let mergeDirection = 'grid';
+        let mergeLayoutMode = 'auto-grid'; // auto-grid | manual-grid | horizontal | vertical | hero-left | hero-top | spotlight | split
         let imageFit = 'contain';
         let gridColumns = 2;
         let includeEmptyCells = false;
@@ -2835,12 +2850,13 @@ Everything stays client-side</div></div>
             
             // Ensure default values are set
             mergeDirection = 'grid';
+            mergeLayoutMode = 'auto-grid';
             imageFit = 'contain';
             gridColumns = 2;
             
             // Set default active states for buttons
-            document.querySelectorAll('[id^="merge-"]').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('merge-grid')?.classList.add('active');
+            document.querySelectorAll('[id^="merge-"], [id^="template-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('merge-auto-grid')?.classList.add('active');
             
             document.querySelectorAll('[id^="fit-"]').forEach(btn => btn.classList.remove('active'));
             document.getElementById('fit-contain')?.classList.add('active');
@@ -2848,10 +2864,13 @@ Everything stays client-side</div></div>
             // Set default description
             document.getElementById('fit-description').textContent = 'Scales to fit within cell, maintains aspect ratio';
             
-            // Show grid columns by default (since grid is default)
-            document.getElementById('grid-columns-container').style.display = 'block';
+            // Show grid columns only for manual grid
+            document.getElementById('grid-columns-container').style.display = 'none';
             document.getElementById('grid-columns-value').textContent = '2';
-            document.getElementById('grid-columns-slider').value = '2';
+            const gridSlider = document.getElementById('grid-columns');
+            if (gridSlider) {
+                gridSlider.value = '2';
+            }
         }
         
         // Setup merge upload zone (preview container)
@@ -2947,6 +2966,8 @@ Everything stays client-side</div></div>
                         // Reinitialize defaults on first image to ensure they're active
                         if (isFirstImage) {
                             initializeMergerDefaults();
+                            setMergeLayout('auto-grid');
+                            setImageFit('contain');
                         }
                         
                         updateMergeUI();
@@ -2962,6 +2983,7 @@ Everything stays client-side</div></div>
             includeEmptyCells = enabled;
             document.getElementById('empty-cells-options').style.display = enabled ? 'block' : 'none';
             rebuildMergeItems();
+            updateMergePreview();
         }
         
         function setEmptyCellPattern(pattern) {
@@ -2969,6 +2991,7 @@ Everything stays client-side</div></div>
             document.querySelectorAll('[id^="pattern-"]').forEach(btn => btn.classList.remove('active'));
             document.getElementById('pattern-' + pattern).classList.add('active');
             rebuildMergeItems();
+            updateMergePreview();
         }
         
         function setEmptyCellColor(color) {
@@ -3177,7 +3200,10 @@ Everything stays client-side</div></div>
                 listContainer.innerHTML = '';
                 document.getElementById('merge-download-btn').style.display = 'none';
                 document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
-                document.getElementById('selected-cell').innerHTML = '<option value="0">No items yet</option>';
+                const emptySelector = document.getElementById('selected-cell');
+                if (emptySelector) {
+                    emptySelector.innerHTML = '<option value="0">No items yet</option>';
+                }
                 return;
             }
             
@@ -3208,24 +3234,26 @@ Everything stays client-side</div></div>
             listHtml += '</div></div>';
             listContainer.innerHTML = listHtml;
             
-            // Update cell selector dropdown
+            // Update cell selector dropdown (if present)
             const cellSelector = document.getElementById('selected-cell');
-            let selectorHtml = '';
-            mergeItems.forEach((item, index) => {
-                if (item.type === 'image') {
-                    selectorHtml += `<option value="${index}">Image ${index + 1} - ${item.file.name.substring(0, 20)}</option>`;
-                } else {
-                    selectorHtml += `<option value="${index}">Empty Cell ${index + 1}</option>`;
+            if (cellSelector) {
+                let selectorHtml = '';
+                mergeItems.forEach((item, index) => {
+                    if (item.type === 'image') {
+                        selectorHtml += `<option value="${index}">Image ${index + 1} - ${item.file.name.substring(0, 20)}</option>`;
+                    } else {
+                        selectorHtml += `<option value="${index}">Empty Cell ${index + 1}</option>`;
+                    }
+                });
+                cellSelector.innerHTML = selectorHtml;
+                
+                // Select first item by default
+                if (selectedCellIndex >= mergeItems.length) {
+                    selectedCellIndex = 0;
                 }
-            });
-            cellSelector.innerHTML = selectorHtml;
-            
-            // Select first item by default
-            if (selectedCellIndex >= mergeItems.length) {
-                selectedCellIndex = 0;
+                cellSelector.value = selectedCellIndex;
+                selectCell(selectedCellIndex);
             }
-            cellSelector.value = selectedCellIndex;
-            selectCell(selectedCellIndex);
             
             // Show download button
             document.getElementById('merge-download-btn').style.display = 'block';
@@ -3245,14 +3273,47 @@ Everything stays client-side</div></div>
         }
         
         function setMergeDirection(direction) {
-            mergeDirection = direction;
+            if (direction === 'grid') {
+                setMergeLayout('manual-grid');
+            } else if (direction === 'horizontal') {
+                setMergeLayout('horizontal');
+            } else if (direction === 'vertical') {
+                setMergeLayout('vertical');
+            }
+        }
+
+        function setMergeLayout(mode) {
+            mergeLayoutMode = mode;
+            if (mode === 'manual-grid' || mode === 'auto-grid') {
+                mergeDirection = 'grid';
+            } else if (mode === 'horizontal' || mode === 'vertical') {
+                mergeDirection = mode;
+            } else {
+                mergeDirection = 'grid';
+            }
             
             // Update button states
-            document.querySelectorAll('[id^="merge-"]').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('merge-' + direction).classList.add('active');
+            document.querySelectorAll('[id^="merge-"], [id^="template-"]').forEach(btn => btn.classList.remove('active'));
+            const modeToButtonId = {
+                'auto-grid': 'merge-auto-grid',
+                'manual-grid': 'merge-grid',
+                'horizontal': 'merge-horizontal',
+                'vertical': 'merge-vertical',
+                'hero-left': 'template-hero-left',
+                'hero-top': 'template-hero-top',
+                'spotlight': 'template-spotlight',
+                'split': 'template-split'
+            };
+            const buttonId = modeToButtonId[mode];
+            if (buttonId) {
+                document.getElementById(buttonId)?.classList.add('active');
+            }
             
-            // Show/hide grid columns
-            document.getElementById('grid-columns-container').style.display = direction === 'grid' ? 'block' : 'none';
+            // Show/hide grid columns only for manual grid
+            const gridContainer = document.getElementById('grid-columns-container');
+            if (gridContainer) {
+                gridContainer.style.display = mode === 'manual-grid' ? 'block' : 'none';
+            }
             
             updateMergePreview();
         }
@@ -3279,7 +3340,142 @@ Everything stays client-side</div></div>
         function updateGridColumns(value) {
             gridColumns = parseInt(value);
             document.getElementById('grid-columns-value').textContent = gridColumns;
+            if (mergeLayoutMode !== 'manual-grid') {
+                setMergeLayout('manual-grid');
+                return;
+            }
             updateMergePreview();
+        }
+
+        function getAutoGridColumns(count) {
+            if (count <= 1) return 1;
+            if (count === 2) return 2;
+            if (count <= 4) return 2;
+            if (count <= 6) return 3;
+            if (count <= 9) return 3;
+            if (count <= 12) return 4;
+            return 4;
+        }
+
+        function buildGridLayout(count, columns) {
+            const rows = Math.max(1, Math.ceil(count / columns));
+            const cells = [];
+            for (let index = 0; index < count; index++) {
+                const row = Math.floor(index / columns);
+                const col = index % columns;
+                cells.push({ index, row, col, rowSpan: 1, colSpan: 1 });
+            }
+            return { columns, rows, cells };
+        }
+
+        function buildHeroLeftLayout(count) {
+            if (count < 3) return null;
+            if (count > 4) return null;
+            if (count === 3) {
+                return {
+                    columns: 3,
+                    rows: 2,
+                    cells: [
+                        { index: 0, row: 0, col: 0, rowSpan: 2, colSpan: 2 },
+                        { index: 1, row: 0, col: 2, rowSpan: 1, colSpan: 1 },
+                        { index: 2, row: 1, col: 2, rowSpan: 1, colSpan: 1 }
+                    ]
+                };
+            }
+            return {
+                columns: 3,
+                rows: 3,
+                cells: [
+                    { index: 0, row: 0, col: 0, rowSpan: 3, colSpan: 2 },
+                    { index: 1, row: 0, col: 2, rowSpan: 1, colSpan: 1 },
+                    { index: 2, row: 1, col: 2, rowSpan: 1, colSpan: 1 },
+                    { index: 3, row: 2, col: 2, rowSpan: 1, colSpan: 1 }
+                ]
+            };
+        }
+
+        function buildHeroTopLayout(count) {
+            if (count < 3) return null;
+            if (count > 4) return null;
+            if (count === 3) {
+                return {
+                    columns: 3,
+                    rows: 2,
+                    cells: [
+                        { index: 0, row: 0, col: 0, rowSpan: 1, colSpan: 3 },
+                        { index: 1, row: 1, col: 0, rowSpan: 1, colSpan: 1 },
+                        { index: 2, row: 1, col: 1, rowSpan: 1, colSpan: 1 }
+                    ]
+                };
+            }
+            return {
+                columns: 3,
+                rows: 2,
+                cells: [
+                    { index: 0, row: 0, col: 0, rowSpan: 1, colSpan: 3 },
+                    { index: 1, row: 1, col: 0, rowSpan: 1, colSpan: 1 },
+                    { index: 2, row: 1, col: 1, rowSpan: 1, colSpan: 1 },
+                    { index: 3, row: 1, col: 2, rowSpan: 1, colSpan: 1 }
+                ]
+            };
+        }
+
+        function buildSpotlightLayout(count) {
+            if (count !== 3) return null;
+            return {
+                columns: 2,
+                rows: 2,
+                cells: [
+                    { index: 0, row: 0, col: 0, rowSpan: 2, colSpan: 1 },
+                    { index: 1, row: 0, col: 1, rowSpan: 1, colSpan: 1 },
+                    { index: 2, row: 1, col: 1, rowSpan: 1, colSpan: 1 }
+                ]
+            };
+        }
+
+        function buildSplitLayout(count) {
+            if (count !== 4) return null;
+            return {
+                columns: 3,
+                rows: 2,
+                cells: [
+                    { index: 0, row: 0, col: 0, rowSpan: 1, colSpan: 2 },
+                    { index: 1, row: 0, col: 2, rowSpan: 1, colSpan: 1 },
+                    { index: 2, row: 1, col: 0, rowSpan: 1, colSpan: 1 },
+                    { index: 3, row: 1, col: 1, rowSpan: 1, colSpan: 2 }
+                ]
+            };
+        }
+
+        function getLayoutConfig(count) {
+            if (count === 0) {
+                return { columns: 1, rows: 1, cells: [] };
+            }
+            
+            if (mergeLayoutMode === 'horizontal') {
+                return buildGridLayout(count, count);
+            }
+            if (mergeLayoutMode === 'vertical') {
+                return { columns: 1, rows: count, cells: buildGridLayout(count, 1).cells };
+            }
+            if (mergeLayoutMode === 'manual-grid') {
+                return buildGridLayout(count, Math.max(1, gridColumns));
+            }
+            if (mergeLayoutMode === 'hero-left') {
+                return buildHeroLeftLayout(count) || buildGridLayout(count, getAutoGridColumns(count));
+            }
+            if (mergeLayoutMode === 'hero-top') {
+                return buildHeroTopLayout(count) || buildGridLayout(count, getAutoGridColumns(count));
+            }
+            if (mergeLayoutMode === 'spotlight') {
+                return buildSpotlightLayout(count) || buildGridLayout(count, getAutoGridColumns(count));
+            }
+            if (mergeLayoutMode === 'split') {
+                return buildSplitLayout(count) || buildGridLayout(count, getAutoGridColumns(count));
+            }
+            
+            // auto-grid (default)
+            return buildGridLayout(count, getAutoGridColumns(count));
         }
         
         function calculateMergeDimensions() {
@@ -3298,21 +3494,11 @@ Everything stays client-side</div></div>
             if (cellWidth === 0) cellWidth = 800;
             if (cellHeight === 0) cellHeight = 600;
             
-            let canvasWidth, canvasHeight;
+            const layout = getLayoutConfig(mergeItems.length);
+            const canvasWidth = cellWidth * layout.columns;
+            const canvasHeight = cellHeight * layout.rows;
             
-            if (mergeDirection === 'horizontal') {
-                canvasWidth = cellWidth * mergeItems.length;
-                canvasHeight = cellHeight;
-            } else if (mergeDirection === 'vertical') {
-                canvasWidth = cellWidth;
-                canvasHeight = cellHeight * mergeItems.length;
-            } else { // grid
-                const rows = Math.ceil(mergeItems.length / gridColumns);
-                canvasWidth = cellWidth * gridColumns;
-                canvasHeight = cellHeight * rows;
-            }
-            
-            return { width: canvasWidth, height: canvasHeight, cellWidth, cellHeight };
+            return { width: canvasWidth, height: canvasHeight, cellWidth, cellHeight, layout };
         }
         
         function updateMergePreview() {
@@ -3364,22 +3550,24 @@ Everything stays client-side</div></div>
                 previewWidth = maxHeight * aspectRatio;
             }
             
-            // Build grid style based on merge direction
-            let gridStyle = `display: grid; gap: 2px; width: ${previewWidth}px; height: ${previewHeight}px; margin: 0 auto;`;
+            const layout = dims.layout || getLayoutConfig(mergeItems.length);
             
-            if (mergeDirection === 'horizontal') {
-                gridStyle += ` grid-template-columns: repeat(${mergeItems.length}, 1fr); grid-template-rows: 1fr; grid-auto-flow: column;`;
-            } else if (mergeDirection === 'vertical') {
-                gridStyle += ` grid-template-rows: repeat(${mergeItems.length}, 1fr); grid-template-columns: 1fr; grid-auto-flow: row;`;
-            } else { // grid (default)
-                const rows = Math.ceil(mergeItems.length / gridColumns);
-                gridStyle += ` grid-template-columns: repeat(${gridColumns}, 1fr); grid-template-rows: repeat(${rows}, 1fr);`;
-            }
+            // Build grid style based on layout
+            let gridStyle = `display: grid; gap: 2px; width: ${previewWidth}px; height: ${previewHeight}px; margin: 0 auto;`;
+            gridStyle += ` grid-template-columns: repeat(${layout.columns}, 1fr); grid-template-rows: repeat(${layout.rows}, 1fr);`;
             
             let html = `<div style="${gridStyle}">`;
             
             mergeItems.forEach((item, index) => {
-                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: ${item.type === 'empty' ? item.color : '#000'}; position: relative; display: flex; align-items: center; justify-content: center;">`;
+                const cell = layout.cells[index];
+                if (!cell) return;
+                
+                const cellStyle = `
+                    grid-column: ${cell.col + 1} / span ${cell.colSpan};
+                    grid-row: ${cell.row + 1} / span ${cell.rowSpan};
+                `;
+                
+                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: ${item.type === 'empty' ? item.color : '#000'}; position: relative; display: flex; align-items: center; justify-content: center; ${cellStyle}">`;
                 
                 if (item.type === 'image') {
                     const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
@@ -3392,7 +3580,7 @@ Everything stays client-side</div></div>
                         position: absolute;
                         color: ${item.text.color};
                         font-family: ${item.text.font};
-                        font-size: ${Math.max(12, item.text.size * (previewWidth / dims.width))}px;
+                        font-size: ${Math.max(6, item.text.size * (previewWidth / dims.width))}px;
                         opacity: ${item.text.opacity};
                         white-space: pre-wrap;
                         text-align: center;
@@ -3624,8 +3812,9 @@ Everything stays client-side</div></div>
             // Apply output scale
             const canvasWidth = Math.round(dims.width * outputScale);
             const canvasHeight = Math.round(dims.height * outputScale);
-            const cellWidth = Math.round(dims.cellWidth * outputScale);
-            const cellHeight = Math.round(dims.cellHeight * outputScale);
+            const baseCellWidth = Math.round(dims.cellWidth * outputScale);
+            const baseCellHeight = Math.round(dims.cellHeight * outputScale);
+            const layout = dims.layout || getLayoutConfig(mergeItems.length);
             
             // Create canvas
             const canvas = document.createElement('canvas');
@@ -3639,20 +3828,13 @@ Everything stays client-side</div></div>
             
             // Draw items (images and empty cells)
             mergeItems.forEach((item, index) => {
-                let x, y;
+                const cell = layout.cells[index];
+                if (!cell) return;
                 
-                if (mergeDirection === 'horizontal') {
-                    x = index * cellWidth;
-                    y = 0;
-                } else if (mergeDirection === 'vertical') {
-                    x = 0;
-                    y = index * cellHeight;
-                } else { // grid
-                    const row = Math.floor(index / gridColumns);
-                    const col = index % gridColumns;
-                    x = col * cellWidth;
-                    y = row * cellHeight;
-                }
+                const x = cell.col * baseCellWidth;
+                const y = cell.row * baseCellHeight;
+                const cellWidth = baseCellWidth * cell.colSpan;
+                const cellHeight = baseCellHeight * cell.rowSpan;
                 
                 if (item.type === 'image') {
                     // Draw image
@@ -3768,7 +3950,7 @@ Everything stays client-side</div></div>
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `merged_${mergeDirection}_${Date.now()}.png`;
+                a.download = `merged_${mergeLayoutMode}_${Date.now()}.png`;
                 a.click();
                 URL.revokeObjectURL(url);
             }, 'image/png');
