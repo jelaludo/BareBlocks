@@ -30,7 +30,7 @@ def show_menu():
     """Show interactive menu"""
     print("\n📋 Available Commands:\n")
     print("  1. CLI Tool - Extract metadata from a file")
-    print("  2. Web App (Client-Side) - Static server (localhost:8080)")
+    print("  2. Web App (Client-Side) - Static server (localhost:8000)")
     print("  3. GUI Tool - Open graphical interface")
     print("  4. Test with sample image")
     print("  5. Show help")
@@ -56,9 +56,9 @@ def run_cli():
 
 def run_web():
     """Run client-side web app (static server)"""
-    print("\n🚀 Starting static server on http://localhost:8080")
-    print("📝 Open: http://localhost:8080/index.html\n")
-    os.system('python -m http.server 8080')
+    print("\n🚀 Starting static server on http://localhost:8000")
+    print("📝 Open: http://localhost:8000/index.html\n")
+    os.system('python -m http.server 8000')
 
 def run_gui():
     """Run GUI tool"""
@@ -93,7 +93,7 @@ def show_help():
     Web Interface:
     --------------
     python run.py web                                 # Start static server
-    python -m http.server 8080                        # Direct start
+    python -m http.server 8000                        # Direct start
     
     Graphical Interface (GUI):
     ---------------------------

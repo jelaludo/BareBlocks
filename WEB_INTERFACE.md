@@ -5,10 +5,10 @@
 BareBlocks runs entirely in the browser (no server-side processing). Serve `index.html` locally:
 
 ```bash
-python -m http.server 8080
+python -m http.server 8000
 ```
 
-Open: `http://localhost:8080/index.html`
+Open: `http://localhost:8000/index.html`
 
 ## What You'll See
 

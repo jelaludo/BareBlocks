@@ -1,6 +1,6 @@
 # Quick Start: When You Return
 
-**Note**: Focus is the client-side web app served via `python -m http.server 8080`.
+**Note**: Focus is the client-side web app served via `python -m http.server 8000`.
 
 ## Current Status
 🔴 **Branch**: `feature/client-side-conversion`  
@@ -59,8 +59,8 @@ code core/layered_inspector.py  # Phase methods (reference)
 
 ### 2. Run Client Version on Test Image (5 minutes)
 ```bash
-python -m http.server 8080
-# Open http://localhost:8080/index.html
+python -m http.server 8000
+# Open http://localhost:8000/index.html
 # Upload ZComfyUI_00104_.png
 # Take screenshots of EVERY section
 # Note exactly what data is shown
@@ -237,7 +237,7 @@ Before considering this branch done:
 
 ## Don't Forget
 
-- Test server still running: `http.server 8080` (port 8080)
+- Test server still running: `http.server 8000` (port 8000)
 - Main branch is stable if you need to bail on this
 - All steganography work was abandoned (too buggy)
 

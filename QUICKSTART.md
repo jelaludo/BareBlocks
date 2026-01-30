@@ -37,8 +37,8 @@ python bareblocks-gui.py
 
 #### Web App (Client-Side)
 ```bash
-python -m http.server 8080
-# Open: http://localhost:8080/index.html
+python -m http.server 8000
+# Open: http://localhost:8000/index.html
 ```
 
 #### Other Tools

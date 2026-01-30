@@ -40,7 +40,7 @@ b36f27e Improve Unicode handling and add copy buttons
 ```
 
 ### Test Status
-- ✅ Page loads correctly at `http://localhost:8080/index.html`
+- ✅ Page loads correctly at `http://localhost:8000/index.html`
 - ✅ UI renders properly (Terminal, Chunks, Export JSON buttons)
 - ✅ Upload zone displays
 - ⏳ Need actual ComfyUI test images to verify metadata extraction
@@ -83,6 +83,6 @@ The branch is now **ready for testing** with real images. The core functionality
 Estimated: ~3 hours (not 12-16 as originally estimated)
 
 ### Notes
-- Local server running on port 8080
+- Local server running on port 8000
 - All major blockers resolved
 - Feature parity with Python version achieved for core functionality

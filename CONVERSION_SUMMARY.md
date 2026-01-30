@@ -207,8 +207,8 @@ For **jelaludo.com** (photography website):
 ### 1. Test Locally ✅
 ```bash
 # Already running
-python -m http.server 8080
-# Visit: http://localhost:8080/index.html
+python -m http.server 8000
+# Visit: http://localhost:8000/index.html
 ```
 
 ### 2. Test with Real Images
