@@ -58,6 +58,12 @@ python bareblocks-cli.py --help
 python bareblocks-gui.py
 ```
 
+#### Web App (Client-Side)
+```bash
+python -m http.server 8000
+# Open: http://localhost:8000/index.html
+```
+
 ## What to Test
 
 1. ✅ **CLI Basic Functionality**

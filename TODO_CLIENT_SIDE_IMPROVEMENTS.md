@@ -1,5 +1,8 @@
 # TODO: Client-Side JavaScript Version Improvements
 
+**Note**: Legacy server code has been removed. Current focus is the client-side web app in `index.html`
+and the core parsing reference in `core/layered_inspector.py`.
+
 **Status**: Branch `feature/client-side-conversion` - NOT production ready
 **Goal**: Match or exceed Python version's functionality while remaining client-side deployable
 
@@ -67,7 +70,7 @@ image_properties    [Object: 5 properties]  -  ← expanded
 4. Indent nested content
 5. Show property/item counts when collapsed
 
-**Python Reference**: `bareblocks-web.py` - `createMetadataTableHTML()` function (~line 700-1000)
+**Reference**: `index.html` (current display logic)
 
 ---
 
@@ -86,7 +89,7 @@ image_properties    [Object: 5 properties]  -  ← expanded
 - Not finding prompts in workflow nodes correctly
 - Not matching original vs resolved prompts properly
 
-**Python Reference**: `bareblocks-web.py` - `addComfyUISection()` function (~line 2501-2900)
+**Reference**: `index.html` (current ComfyUI section)
 
 #### Key Algorithm from Python Version:
 ```python
@@ -184,7 +187,7 @@ Python version shows the ENTIRE raw data structure at bottom:
 - No collapsing
 - Very limited
 
-**Python Code Location**: `bareblocks-web.py` lines ~700-1000
+**Reference**: `index.html` display logic
 
 ---
 
@@ -209,7 +212,7 @@ LoRA config JSON: found  ...
 - Make "found" items clickable (scroll to section)
 - Color code (green for found, red for not found)
 
-**Python Reference**: `bareblocks-web.py` - `addDataRecap()` function (~line 2244-2434)
+**Reference**: `index.html` data recap
 
 ---
 
@@ -249,27 +252,14 @@ Display with expandable sections
 
 ## Specific Code Files to Reference
 
-### From Python Version:
+### Core Parsing Reference:
 
-1. **`bareblocks-web.py`** - Main web interface
-   - Lines 700-1000: `createMetadataTableHTML()` - Nested object display
-   - Lines 1800-1900: Toggle row functionality
-   - Lines 2244-2434: `addDataRecap()` - Data recap section
-   - Lines 2436-2499: `extractWildcards()` - Wildcard resolution
-   - Lines 2501-2900: `addComfyUISection()` - ComfyUI display
-   - Lines 1942-2174: `addProvenanceSummary()` - Provenance detection
-
-2. **`core/layered_inspector.py`** - Core parsing logic
+1. **`core/layered_inspector.py`** - Core parsing logic
    - Phase 1-8 methods
    - PNG chunk parsing
    - JPEG segment parsing
    - Metadata extraction
    - AI pattern recognition
-
-3. **`bareblocks_cli_web.py`** - Metadata extractor class
-   - EXIF extraction
-   - GPS conversion
-   - File type detection
 
 ---
 
@@ -483,10 +473,8 @@ def parsePngChunks(arrayBuffer):
 
 ## References
 
-### Python Version Files:
-- `bareblocks-web.py` - Main web interface (3,544 lines)
+### Core Reference:
 - `core/layered_inspector.py` - Core parsing (870 lines)
-- `bareblocks_cli_web.py` - Metadata extractor (308 lines)
 
 ### Current JavaScript Version:
 - `index.html` - Complete standalone app (~1,000 lines)
@@ -504,9 +492,8 @@ def parsePngChunks(arrayBuffer):
 
 ### Start Here:
 1. **Read this entire TODO document**
-2. **Open `bareblocks-web.py`** - Study the `createMetadataTableHTML()` function
-3. **Test Python version** - Run it on the same test image to see exact output
-4. **Implement expandable rows** - This is the biggest missing feature
+2. **Review `index.html` display logic** - Focus on expandable rows
+3. **Implement expandable rows** - This is the biggest missing feature
 5. **Fix wildcard extraction** - Port the exact Python logic
 6. **Add missing sections** - Structure, Anomalies, Data Recap
 7. **Test, test, test** - Use the same test images for both versions

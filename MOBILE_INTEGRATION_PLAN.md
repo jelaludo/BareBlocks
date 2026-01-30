@@ -82,11 +82,11 @@ We'll use a **micro-frontend** approach - BareBlocks runs independently without 
 
 **Cons**:
 - Requires DNS configuration
-- Need to deploy Python Flask app (more complex than static HTML)
+- Requires static hosting setup (simple)
 
 **Implementation**:
 1. Set up subdomain in DNS
-2. Deploy Flask app on hosting (PythonAnywhere, Heroku, DigitalOcean, etc.)
+2. Deploy static site (Cloudflare Pages/GitHub Pages/Netlify)
 3. Add navigation link from main site to metadata tool
 4. Done - completely isolated
 
@@ -101,7 +101,7 @@ We'll use a **micro-frontend** approach - BareBlocks runs independently without 
 - ✅ Easy to add/remove
 
 **Cons**:
-- Need hosting for Flask app separately
+- Need hosting for the static app separately
 - Iframe styling can be tricky
 - Mobile iframe experience can be awkward
 
@@ -328,29 +328,23 @@ if (isMobile || isTouch) {
 
 ---
 
-## Deployment Options for Flask App
+## Deployment Options for Static App
 
-### Option A: PythonAnywhere (EASIEST)
-- **Cost**: Free tier available, $5/month for custom domain
-- **Pros**: Python-specific, easy Flask deployment
-- **Setup**: 1-2 hours
-- **URL**: `jelaludo.pythonanywhere.com` or custom subdomain
+### Option A: Cloudflare Pages (EASIEST)
+- **Cost**: Free
+- **Pros**: Simple static hosting, fast CDN
+- **Setup**: 10-20 minutes
+- **URL**: `*.pages.dev` or custom subdomain
 
-### Option B: Heroku
-- **Cost**: Free tier (with limitations), ~$7/month for hobby tier
-- **Pros**: Auto-scaling, Git deployment
-- **Setup**: 2-3 hours
+### Option B: GitHub Pages
+- **Cost**: Free
+- **Pros**: Simple Git-based deployment
+- **Setup**: 10-20 minutes
 
-### Option C: DigitalOcean App Platform
-- **Cost**: $5/month minimum
-- **Pros**: Full control, good performance
-- **Setup**: 3-4 hours
-
-### Option D: Vercel/Netlify (Requires Serverless Conversion)
-- **Cost**: Free tier generous
-- **Pros**: Fast, modern, easy deployment
-- **Cons**: Need to convert Flask to serverless functions
-- **Setup**: 4-6 hours
+### Option C: Netlify
+- **Cost**: Free tier available
+- **Pros**: Drag-and-drop deploy, fast CDN
+- **Setup**: 10-20 minutes
 
 ---
 
@@ -463,7 +457,7 @@ if (isMobile || isTouch) {
 ## Questions for User
 
 1. Do you have access to jelaludo.com's hosting/CMS to add navigation links?
-2. Do you have a preferred hosting provider for the Flask app?
+2. Do you have a preferred static hosting provider?
 3. What's your budget for hosting ($0-5/month, $5-20/month, more)?
 4. Do you want to start with mobile optimization first, then integration?
 5. Should BareBlocks match jelaludo.com's visual style (colors, fonts)?

@@ -3,7 +3,7 @@
 
 ## The User's Insight: You're Right! 🎯
 
-**Current Architecture**: Flask (Python) server → processes files → returns JSON
+**Current Architecture**: Legacy server → processes files → returns JSON
 **Proposed Architecture**: Pure JavaScript in browser → processes files locally → no server needed
 
 **Result**: Can be hosted on **Cloudflare Pages, GitHub Pages, or just uploaded to jelaludo.com** - **100% FREE**
@@ -23,7 +23,6 @@ ffmpeg-python>=0.2.0    # Video processing
 pdfplumber>=0.9.0       # PDF metadata
 python-docx>=0.8.11     # Word docs
 mutagen>=1.47.0         # Audio files
-flask>=3.0.0            # Web server (ONLY for serving)
 ```
 
 ### For jelaludo.com (Photography Site)
@@ -75,9 +74,9 @@ flask>=3.0.0            # Web server (ONLY for serving)
 
 ### Phase 1: Core Metadata Extraction (JavaScript)
 
-**Current Python Code** (simplified):
+**Legacy Python Code** (simplified):
 ```python
-# bareblocks_cli_web.py
+# legacy extractor
 import exifread
 from PIL import Image
 
@@ -292,7 +291,7 @@ function detectAIMetadata(metadata, pngChunks) {
 | **TOTAL** | **~10-12 hours** | **Less than 2 days of work** |
 
 ### What Gets Removed (Simplification)
-❌ Flask server code (~500 lines) - DELETE
+❌ Legacy server code (~500 lines) - DELETE
 ❌ Python dependencies - DELETE
 ❌ Server-side file handling - DELETE
 ❌ API routes - DELETE
@@ -451,7 +450,7 @@ bareblocks-static/
 </html>
 ```
 
-**This 30-line file does 80% of what the current Flask app does!**
+**This 30-line file does 80% of what the legacy server app did!**
 
 ---
 
@@ -464,7 +463,7 @@ bareblocks-static/
 2. **Free hosting** on Cloudflare (you're already using them)
 3. **Better privacy** - files never leave user's computer
 4. **Faster** - no upload time
-5. **Simpler** - no Python, Flask, dependencies
+5. **Simpler** - no server dependencies
 6. **Easier integration** with jelaludo.com
 7. **Only ~10-12 hours of work** - very reasonable
 

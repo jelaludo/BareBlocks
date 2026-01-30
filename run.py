@@ -30,7 +30,7 @@ def show_menu():
     """Show interactive menu"""
     print("\n📋 Available Commands:\n")
     print("  1. CLI Tool - Extract metadata from a file")
-    print("  2. Web Interface - Browser-based terminal (localhost:5000)")
+    print("  2. Web App (Client-Side) - Static server (localhost:8000)")
     print("  3. GUI Tool - Open graphical interface")
     print("  4. Test with sample image")
     print("  5. Show help")
@@ -55,10 +55,10 @@ def run_cli():
     os.system(f'python bareblocks-cli.py "{file_path}"')
 
 def run_web():
-    """Run web interface"""
-    print("\n🚀 Starting web server on http://localhost:5000")
-    print("📝 Browser will open automatically...\n")
-    os.system('python bareblocks-web.py')
+    """Run client-side web app (static server)"""
+    print("\n🚀 Starting static server on http://localhost:8000")
+    print("📝 Open: http://localhost:8000/index.html\n")
+    os.system('python -m http.server 8000')
 
 def run_gui():
     """Run GUI tool"""
@@ -92,8 +92,8 @@ def show_help():
     
     Web Interface:
     --------------
-    python run.py web                                 # Start web server
-    python bareblocks-web.py                          # Direct start
+    python run.py web                                 # Start static server
+    python -m http.server 8000                        # Direct start
     
     Graphical Interface (GUI):
     ---------------------------
@@ -119,7 +119,7 @@ def main():
         command = sys.argv[1].lower()
         if command == "cli":
             run_cli()
-        elif command == "web" or command == "server":
+        elif command == "web" or command == "server" or command == "static":
             run_web()
         elif command == "gui":
             run_gui()
@@ -129,7 +129,7 @@ def main():
             show_help()
         else:
             print(f"Unknown command: {command}")
-            print("Use: python run.py [cli|web|gui|test|help]")
+            print("Use: python run.py [cli|web|static|gui|test|help]")
     else:
         # Interactive mode
         while True:

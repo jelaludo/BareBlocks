@@ -75,7 +75,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Flask
+# Legacy server
 instance/
 .webassets-cache
 

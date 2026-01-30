@@ -1,5 +1,7 @@
 # Quick Start: When You Return
 
+**Note**: Focus is the client-side web app served via `python -m http.server 8000`.
+
 ## Current Status
 🔴 **Branch**: `feature/client-side-conversion`  
 🔴 **Status**: NOT PRODUCTION READY  
@@ -9,7 +11,7 @@
 
 ## What Went Wrong
 
-We successfully converted from Flask to pure JavaScript, BUT:
+We successfully converted from a server-based app to pure JavaScript, BUT:
 - Oversimplified the metadata extraction
 - Lost the expandable row system (the `+`/`-` buttons)
 - Missing critical sections: Structure, Anomalies, Data Recap
@@ -48,17 +50,17 @@ JavaScript version: Completely missing this.
 
 ## What to Do First
 
-### 1. Study Python Version (15 minutes)
+### 1. Study Current Client Version (15 minutes)
 ```bash
 # Open these files side-by-side
-code bareblocks-web.py          # Lines 700-1000: createMetadataTableHTML()
-code core/layered_inspector.py  # Phase methods
 code index.html                 # Current JavaScript version
+code core/layered_inspector.py  # Phase methods (reference)
 ```
 
-### 2. Run Python Version on Test Image (5 minutes)
+### 2. Run Client Version on Test Image (5 minutes)
 ```bash
-python bareblocks-web.py
+python -m http.server 8000
+# Open http://localhost:8000/index.html
 # Upload ZComfyUI_00104_.png
 # Take screenshots of EVERY section
 # Note exactly what data is shown
@@ -151,12 +153,9 @@ function toggleRow(path) {
 ## Files to Focus On
 
 ### Study These:
-1. **`bareblocks-web.py`** - The reference implementation
-   - Lines 700-1000: Nested object display
-   - Lines 2501-2900: ComfyUI section
-   - Lines 2244-2434: Data Recap
-
-2. **`TODO_CLIENT_SIDE_IMPROVEMENTS.md`** - Complete task list
+1. **`index.html`** - Current UI rendering and data recap
+2. **`core/layered_inspector.py`** - Reference for parsing phases
+3. **`TODO_CLIENT_SIDE_IMPROVEMENTS.md`** - Complete task list
 
 ### Edit These:
 1. **`index.html`** - The entire app (needs major expansion)
@@ -238,8 +237,7 @@ Before considering this branch done:
 
 ## Don't Forget
 
-- Python version is in `bareblocks-web.py` - USE IT AS REFERENCE
-- Test server still running: `http.server 8080` (port 8080)
+- Test server still running: `http.server 8000` (port 8000)
 - Main branch is stable if you need to bail on this
 - All steganography work was abandoned (too buggy)
 
@@ -248,11 +246,10 @@ Before considering this branch done:
 ## Questions While Working?
 
 Look at these in order:
-1. Python version source code
+1. `index.html` and `core/layered_inspector.py`
 2. `TODO_CLIENT_SIDE_IMPROVEMENTS.md`
 3. Console logs (add more `console.log()` everywhere)
 4. Network tab (check if data is loading)
-5. Compare with Python version output side-by-side
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## What Was Done
 
-Converted BareBlocks from **Python/Flask server** to **pure JavaScript** client-side application.
+Converted BareBlocks from a **server-based** app to a **pure JavaScript** client-side application.
 
 ### Timeline
 - **Started**: Branch `feature/client-side-conversion` created
@@ -13,8 +13,8 @@ Converted BareBlocks from **Python/Flask server** to **pure JavaScript** client-
 
 ## Technical Changes
 
-### Removed (Python Backend)
-- ❌ Flask server (`bareblocks-web.py` - 3,500+ lines)
+### Removed (Legacy Server Backend)
+- ❌ Legacy server web app code
 - ❌ Python dependencies (Pillow, exifread, etc.)
 - ❌ Server-side file handling
 - ❌ API routes (`/analyze`, `/chunk_bytes`)
@@ -61,20 +61,13 @@ Converted BareBlocks from **Python/Flask server** to **pure JavaScript** client-
 
 ### Before
 ```
-bareblocks-web.py          3,544 lines
-bareblocks_cli_web.py        308 lines
-core/layered_inspector.py    870 lines
-requirements.txt              11 dependencies
--------------------------------------------
-TOTAL:                     4,722 lines + 11 Python packages
+Server-based implementation + Python dependencies
 ```
 
 ### After
 ```
 index.html                 1,000 lines
 exifr library              (loaded from CDN)
--------------------------------------------
-TOTAL:                     1,000 lines + 1 JavaScript library
 ```
 
 **Reduction**: ~75% less code, 100% fewer dependencies to manage
@@ -214,8 +207,8 @@ For **jelaludo.com** (photography website):
 ### 1. Test Locally ✅
 ```bash
 # Already running
-python -m http.server 8080
-# Visit: http://localhost:8080/index.html
+python -m http.server 8000
+# Visit: http://localhost:8000/index.html
 ```
 
 ### 2. Test with Real Images

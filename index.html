@@ -95,6 +95,11 @@
             border-color: #6FC3DF;
         }
         
+        #output-dimensions:hover {
+            background: #1c2128;
+            border-color: #6FC3DF !important;
+        }
+        
         .tab-button.active {
             background: #0d1117;
             color: #6FC3DF;
@@ -339,14 +344,87 @@
             margin: 6px 0;
             font-size: 11px;
             line-height: 1.5;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0 8px;
         }
         
         .recap-item {
-            display: inline-block;
+            display: block;
+            padding: 2px 6px;
+            border: 1px solid #21262d;
+            border-radius: 4px;
+            background: #0d1117;
             white-space: nowrap;
+        }
+
+        /* Parsing flow */
+        .parsing-flow-content {
+            display: none;
+            padding: 15px 20px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+        
+        .parsing-flow-content.active {
+            display: block;
+        }
+        
+        .parsing-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 10px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .parsing-flow-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .parsing-flow-phase {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        
+        .parsing-flow-content h3 {
+            color: #89D185;
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            font-weight: bold;
+        }
+        
+        .parsing-flow-content .phase-desc {
+            color: #8b949e;
+            margin-left: 0;
+            margin-bottom: 0;
+            white-space: pre-line;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+        
+        .parsing-flow-content .phase-title {
+            color: #6FC3DF;
+            font-weight: bold;
+        }
+        
+        .flow-status-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .flow-status-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         
         /* Category colors for table headers */
@@ -727,6 +805,45 @@
                 </div>
                 <input type="file" id="fileInput" accept="image/*">
                 <div id="output"></div>
+                <div class="parsing-flow-content" id="parsingFlowPanel">
+                    <div class="parsing-flow-grid">
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 0: Orchestration</span></h3><div class="phase-desc">Entry point: file selected or dropped
+Routes to parser based on container type
+Aggregates results into final report</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 1: File Intake</span></h3><div class="phase-desc">Reads file in browser (File API)
+Validates size and type
+Records basic file info (name, size, mime)</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 2: Container Identification</span></h3><div class="phase-desc">Reads first 8-16 bytes (magic bytes)
+Matches known signatures:
+  PNG: 89 50 4E 47 0D 0A 1A 0A
+  JPEG: FF D8 FF
+  WEBP: RIFF....WEBP
+Returns container type and confidence</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 3: Structural Enumeration</span></h3><div class="phase-desc">PNG: iterate chunks (length, type, data, CRC)
+JPEG: iterate segments (marker, length, payload)
+Classifies pixel vs metadata areas
+Returns chunk/segment list and byte totals</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 4: Declared Metadata</span></h3><div class="phase-desc">Uses exifr for EXIF/IPTC/XMP
+Extracts GPS and camera fields
+Returns structured metadata object</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 5: Opaque Payload Detection</span></h3><div class="phase-desc">PNG text chunks (tEXt, zTXt, iTXt)
+Attempts UTF-8 decode and JSON parse
+Classifies: json, text, or binary
+Returns payload list with sizes and sources</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 6: AI Pattern Recognition</span></h3><div class="phase-desc">Scans payloads for ComfyUI/SD patterns
+Looks for workflow nodes and prompt text
+Returns AI metadata summary</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 7: Anomaly Heuristics</span></h3><div class="phase-desc">Computes non-pixel ratio
+Flags large metadata payloads
+Returns anomaly stats and flags</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 8: Report Assembly</span></h3><div class="phase-desc">Merges: summary, structure, metadata, payloads, ai, anomalies
+Formats for table rendering
+Ready for UI display</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">UI Rendering</span></h3><div class="phase-desc">Renders tables and collapsible sections
+Enables copy/export actions
+Everything stays client-side</div></div>
+                    </div>
+                </div>
             </div>
             
             <!-- Image Tools Tab -->
@@ -773,43 +890,167 @@
                                     </div>
                                     
                                     <!-- Output Dimensions Display -->
-                                    <div id="output-dimensions" style="margin-bottom: 15px; padding: 10px; background: #161b22; border-radius: 4px; font-size: 11px; color: #8b949e; display: none;">
+                                    <div id="output-dimensions" onclick="openOutputSizeModal()" style="margin-bottom: 15px; padding: 10px; background: #161b22; border-radius: 4px; font-size: 11px; color: #8b949e; display: none; cursor: pointer; border: 1px solid #30363d; transition: all 0.2s;">
                                         <strong style="color: #c9d1d9;">Final Size:</strong> <span id="dimensions-text"></span>
+                                        <span style="float: right; color: #6FC3DF; font-size: 10px;">✏️ Click to adjust</span>
+                                    </div>
+                                    
+                                    <!-- Empty Cells Section -->
+                                    <div style="margin-bottom: 20px; padding: 12px; background: #161b22; border-radius: 4px; border: 1px solid #30363d;">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 12px;">
+                                            <input type="checkbox" id="include-empty-cells" onchange="toggleEmptyCells(this.checked)" style="cursor: pointer;">
+                                            <span style="color: #c9d1d9; font-size: 12px; font-weight: bold;">Include Empty Cells</span>
+                                        </label>
+                                        <div id="empty-cells-options" style="display: none;">
+                                            <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Pattern</label>
+                                            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                                <button class="tab-button" id="pattern-before" onclick="setEmptyCellPattern('before')" style="flex: 1; font-size: 10px;">Before Each</button>
+                                                <button class="tab-button active" id="pattern-after" onclick="setEmptyCellPattern('after')" style="flex: 1; font-size: 10px;">After Each</button>
+                                            </div>
+                                            <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Cell Color</label>
+                                            <div style="display: flex; gap: 8px;">
+                                                <input type="color" id="empty-cell-color" value="#ffffff" onchange="setEmptyCellColor(this.value)" style="width: 50px; height: 32px; cursor: pointer; border: 1px solid #30363d; border-radius: 4px; background: transparent;">
+                                                <input type="text" id="empty-cell-color-text" value="#ffffff" onchange="setEmptyCellColor(this.value)" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; font-family: monospace;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Text Overlay Section -->
+                                    <div style="padding: 15px; background: #161b22; border-radius: 4px; border: 1px solid #30363d; text-align: center;">
+                                        <div style="color: #6FC3DF; font-size: 13px; font-weight: bold; margin-bottom: 10px;">✏️ Text Editing</div>
+                                        <p style="color: #8b949e; font-size: 11px; line-height: 1.6; margin: 0;">
+                                            <strong style="color: #c9d1d9;">Click</strong> any text to edit<br>
+                                            <strong style="color: #c9d1d9;">Drag</strong> text to reposition<br>
+                                            <strong style="color: #c9d1d9;">Double-click</strong> empty area to add more images
+                                        </p>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Upload Zone -->
-                            <div class="upload-zone" id="mergeUploadZone" style="margin-top: 15px; min-height: 150px;">
-                                <div class="upload-icon">[   ]</div>
-                                <div>Click or drag files here to merge</div>
-                                <div class="info" style="margin-top: 10px; font-size: 11px;">
-                                    Supports: JPEG, PNG, TIFF, HEIC<br>
-                                    All processing happens in your browser
-                                </div>
-                            </div>
-                            <input type="file" id="mergeFileInput" accept="image/*" multiple style="display: none;">
                             
                             <!-- Selected Images List -->
                             <div id="selected-images-list" style="margin-top: 15px;"></div>
                         </div>
                         
-                        <!-- Right Panel: Preview -->
+                        <!-- Right Panel: Preview + Upload -->
                         <div style="flex: 1; min-width: 400px;">
                             <div class="metadata-section" style="min-height: 500px;">
-                                <div class="section-title">Preview Area</div>
-                                <div id="merge-preview" style="padding: 20px; text-align: center; min-height: 450px; display: flex; align-items: center; justify-content: center;">
-                                    <p class="info">Add images to see preview</p>
+                                <div class="section-title">Preview & Upload</div>
+                                <div id="merge-preview-container" class="upload-zone" style="padding: 20px; text-align: center; min-height: 450px; cursor: pointer; position: relative; overflow-x: auto; overflow-y: auto;">
+                                    <input type="file" id="mergeFileInput" accept="image/*" multiple style="display: none;">
+                                    <div id="merge-preview" style="width: 100%; min-height: 410px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="text-align: center;">
+                                            <div class="upload-icon" style="font-size: 48px; margin-bottom: 20px;">[   ]</div>
+                                            <div style="font-size: 14px; color: #c9d1d9; margin-bottom: 10px;">Click or drag files here to merge</div>
+                                            <div class="info" style="font-size: 11px;">
+                                                Supports: JPEG, PNG, TIFF, HEIC<br>
+                                                All processing happens in your browser
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- Merge Button -->
-                            <button class="tab-button" id="merge-download-btn" onclick="downloadMergedImage()" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 14px; display: none;">
+                            <button class="tab-button" id="merge-download-btn" onclick="openOutputSizeModal()" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 14px; display: none;">
                                 ⬇ Merge & Download
                             </button>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Text Edit Modal -->
+    <div id="text-edit-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div id="modal-content" style="background: #161b22; border: 2px solid #6FC3DF; border-radius: 8px; padding: 20px; width: 600px; max-width: 90%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <div id="modal-header" style="cursor: move; padding: 10px; margin: -20px -20px 15px -20px; background: #0d1117; border-bottom: 1px solid #30363d; border-radius: 6px 6px 0 0; user-select: none;">
+                <h3 style="margin: 0; color: #6FC3DF; font-size: 14px;">✏️ Edit Text</h3>
+            </div>
+            
+            <!-- Text Input -->
+            <textarea id="modal-text-input" style="width: 100%; min-height: 100px; padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; resize: vertical; margin-bottom: 15px;" placeholder="Enter text..."></textarea>
+            
+            <!-- Styling Controls -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Font</label>
+                    <select id="modal-text-font" style="width: 100%; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; cursor: pointer;">
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="Courier New, monospace">Courier New</option>
+                        <option value="Times New Roman, serif">Times New Roman</option>
+                        <option value="Verdana, sans-serif">Verdana</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Size: <span id="modal-text-size-value">48</span>px</label>
+                    <input type="range" id="modal-text-size" min="12" max="120" value="48" style="width: 100%;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Color</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="color" id="modal-text-color" value="#ffffff" style="width: 50px; height: 32px; cursor: pointer; border: 1px solid #30363d; border-radius: 4px; background: transparent;">
+                        <input type="text" id="modal-text-color-text" value="#ffffff" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px; font-family: monospace;">
+                    </div>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; color: #8b949e; font-size: 11px;">Opacity: <span id="modal-text-opacity-value">100</span>%</label>
+                    <input type="range" id="modal-text-opacity" min="0" max="100" value="100" style="width: 100%;">
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeTextModal(false)" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; font-size: 12px;">Cancel</button>
+                <button onclick="closeTextModal(true)" style="padding: 8px 16px; background: #238636; border: 1px solid #2ea043; border-radius: 4px; color: #fff; cursor: pointer; font-size: 12px; font-weight: bold;">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Output Size Modal -->
+    <div id="output-size-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: #161b22; border: 2px solid #6FC3DF; border-radius: 8px; padding: 25px; width: 500px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #6FC3DF; font-size: 16px;">📐 Output Size</h3>
+            
+            <!-- Current Dimensions -->
+            <div style="background: #0d1117; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #30363d;">
+                <div style="color: #8b949e; font-size: 11px; margin-bottom: 5px;">Current Output Size:</div>
+                <div id="output-size-current" style="color: #c9d1d9; font-size: 18px; font-weight: bold; font-family: monospace;"></div>
+                <div id="output-size-preview" style="color: #6FC3DF; font-size: 11px; margin-top: 5px;"></div>
+            </div>
+            
+            <!-- Scale Options -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; color: #8b949e; font-size: 12px;">Scale Factor:</label>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                    <button class="tab-button active" id="scale-100" onclick="setOutputScale(1.0)" style="font-size: 11px;">100% (1×)</button>
+                    <button class="tab-button" id="scale-75" onclick="setOutputScale(0.75)" style="font-size: 11px;">75%</button>
+                    <button class="tab-button" id="scale-50" onclick="setOutputScale(0.5)" style="font-size: 11px;">50%</button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                    <button class="tab-button" id="scale-25" onclick="setOutputScale(0.25)" style="font-size: 11px;">25%</button>
+                    <button class="tab-button" id="scale-custom" onclick="setOutputScale('custom')" style="font-size: 11px;">Custom</button>
+                </div>
+            </div>
+            
+            <!-- Custom Scale Input -->
+            <div id="custom-scale-input" style="display: none; margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: #8b949e; font-size: 11px;">Custom Scale: <span id="custom-scale-value">100</span>%</label>
+                <input type="range" id="custom-scale-slider" min="10" max="200" value="100" oninput="updateCustomScale(this.value)" style="width: 100%; margin-bottom: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <input type="number" id="custom-scale-number" min="10" max="200" value="100" onchange="updateCustomScale(this.value)" style="flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-size: 11px;">
+                    <span style="color: #8b949e; line-height: 32px;">%</span>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeOutputSizeModal()" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; font-size: 12px;">Cancel</button>
+                <button onclick="proceedWithDownload()" style="padding: 8px 16px; background: #238636; border: 1px solid #2ea043; border-radius: 4px; color: #fff; cursor: pointer; font-size: 12px; font-weight: bold;">Download</button>
             </div>
         </div>
     </div>
@@ -843,6 +1084,8 @@
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
         const output = document.getElementById('output');
+        const parsingFlowPanel = document.getElementById('parsingFlowPanel');
+        let isParsingFlowVisible = false;
         
         uploadZone.addEventListener('click', () => fileInput.click());
         
@@ -868,6 +1111,48 @@
                 processFile(e.target.files[0]);
             }
         });
+
+        function resetParsingFlowView() {
+            isParsingFlowVisible = false;
+            if (parsingFlowPanel) {
+                parsingFlowPanel.classList.remove('active');
+            }
+            const metadataBody = document.getElementById('metadataBody');
+            if (metadataBody) {
+                metadataBody.style.display = 'block';
+            }
+            const toggleBtn = document.getElementById('parsingFlowToggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = '[ Parsing Flow ]';
+            }
+            const backBtn = document.getElementById('parsingFlowBack');
+            if (backBtn) {
+                backBtn.style.display = 'none';
+            }
+        }
+
+        function toggleParsingFlow() {
+            const metadataBody = document.getElementById('metadataBody');
+            if (!parsingFlowPanel || !metadataBody) {
+                return;
+            }
+            isParsingFlowVisible = !isParsingFlowVisible;
+            if (isParsingFlowVisible) {
+                parsingFlowPanel.classList.add('active');
+                metadataBody.style.display = 'none';
+            } else {
+                parsingFlowPanel.classList.remove('active');
+                metadataBody.style.display = 'block';
+            }
+            const toggleBtn = document.getElementById('parsingFlowToggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = '[ Parsing Flow ]';
+            }
+            const backBtn = document.getElementById('parsingFlowBack');
+            if (backBtn) {
+                backBtn.style.display = isParsingFlowVisible ? 'inline-block' : 'none';
+            }
+        }
         
         // Main file processing function
         async function processFile(file) {
@@ -890,6 +1175,14 @@
                 // Extract metadata
                 const metadata = await extractMetadata(file);
                 currentMetadata = metadata;
+                
+                // Cache metadata for potential use in Image Merger
+                imageMetadataCache.set(file.name, {
+                    metadata: metadata,
+                    file: file,
+                    timestamp: Date.now()
+                });
+                console.log(`Cached metadata for: ${file.name}`);
                 
                 // Display results
                 displayMetadata(metadata);
@@ -1777,12 +2070,16 @@
         
         // Display metadata in terminal
         function displayMetadata(metadata) {
-            let html = '<div class="output-line success">Metadata extracted successfully <span class="copy-text-btn" onclick="exportJSON()" style="cursor:pointer; color:#6FC3DF; margin-left: 15px;">[ Export JSON ]</span></div>';
-            
-            // Data Recap section - at the very top
-            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
-            html += createDataRecap(metadata);
-            html += '</div>';
+            resetParsingFlowView();
+            let html = `<div class="output-line success flow-status-line">
+                <span>Metadata extracted successfully</span>
+                <span class="flow-status-actions">
+                    <span class="copy-text-btn" id="parsingFlowBack" onclick="toggleParsingFlow()" style="cursor:pointer; color:#6FC3DF; display: none;">[ Back to Metadata ]</span>
+                    <span class="copy-text-btn" onclick="exportJSON()" style="cursor:pointer; color:#6FC3DF;">[ Export JSON ]</span>
+                    <span class="copy-text-btn" id="parsingFlowToggle" onclick="toggleParsingFlow()" style="cursor:pointer; color:#6FC3DF;">[ Parsing Flow ]</span>
+                </span>
+            </div>`;
+            html += '<div id="metadataBody">';
             
             // Summary section (merged Smart Summary + regular Summary)
             html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
@@ -1834,7 +2131,17 @@
                             displayDate = date.toLocaleString();
                         }
                     }
-                    html += `<tr><td>Date Created</td><td>${escapeHtml(String(displayDate))}</td></tr>`;
+                    const displayDateText = String(displayDate);
+                    const yearMatch = displayDateText.match(/\b(\d{4})\b/);
+                    let safeDateText = escapeHtml(displayDateText);
+                    if (yearMatch) {
+                        const yearToken = escapeHtml(yearMatch[1]);
+                        safeDateText = safeDateText.replace(
+                            yearToken,
+                            `<span class="category-structure">${yearToken}</span>`
+                        );
+                    }
+                    html += `<tr><td>Date Created</td><td>${safeDateText}</td></tr>`;
                 }
             }
             
@@ -1919,6 +2226,11 @@
             }
             
             html += '</tbody></table></div>';
+            
+            // Data Recap section
+            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
+            html += createDataRecap(metadata);
+            html += '</div>';
             
             // ComfyUI Workflow section
             if (metadata.aiMetadata && metadata.aiMetadata.hasComfyUI) {
@@ -2043,7 +2355,7 @@
             }
             
             // Bottom raw data display
-            html += '<div class="metadata-section"><div class="section-title">Full Object Display</div>';
+            html += '<div class="metadata-section" id="section-full-object"><div class="section-title">Full Object Display</div>';
             html += '<p class="info" style="margin-bottom: 10px;">All extracted data in structured format:</p>';
             html += createMetadataTableHTML({
                 summary: metadata.fileName ? { fileName: metadata.fileName, fileSize: metadata.fileSize, containerType: metadata.containerType } : null,
@@ -2056,7 +2368,7 @@
             html += '</div>';
             
             // File Structure Visualization (Chunks) - at the very bottom
-            html += '<div class="metadata-section" style="margin-top: 20px;"><div class="section-title category-structure">File Structure Visualization</div>';
+            html += '<div class="metadata-section" id="section-structure-viz" style="margin-top: 20px;"><div class="section-title category-structure">File Structure Visualization</div>';
             html += '<div id="chunksVisualizationInline"></div>';
             html += '</div>';
             
@@ -2070,16 +2382,144 @@
         
         // Create Data Recap section
         function createDataRecap(metadata) {
+            const textChunks = metadata.pngTextChunks || [];
+            const exifKeys = [];
+            const exifValues = {};
+
+            const collectExif = (obj) => {
+                if (!obj || typeof obj !== 'object') return;
+                for (const [key, value] of Object.entries(obj)) {
+                    const lowerKey = String(key).toLowerCase();
+                    exifKeys.push(lowerKey);
+                    if (value && typeof value === 'object' && !Array.isArray(value)) {
+                        collectExif(value);
+                    } else if (value !== undefined && value !== null && String(value).trim() !== '') {
+                        exifValues[lowerKey] = value;
+                    }
+                }
+            };
+
+            collectExif(metadata.exif);
+
+            const allExifData = (() => {
+                const combined = {};
+                if (metadata.exif) {
+                    Object.assign(combined, metadata.exif);
+                    if (metadata.exif.ifd0) Object.assign(combined, metadata.exif.ifd0);
+                    if (metadata.exif.exif) Object.assign(combined, metadata.exif.exif);
+                    if (metadata.exif.gps) Object.assign(combined, metadata.exif.gps);
+                }
+                return combined;
+            })();
+
+            const cameraModel = allExifData.Model || allExifData['272'] || null;
+            const cameraMake = allExifData.Make || null;
+            const lensModel = allExifData.LensModel || allExifData['42036'] || allExifData.LensInfo || null;
+
+            const hasKey = (...terms) => {
+                return terms.some(term => exifKeys.some(key => key.includes(term)));
+            };
+
+            const hasValueFor = (...terms) => {
+                return terms.some(term => {
+                    return Object.entries(exifValues).some(([key, value]) => {
+                        return key.includes(term) && String(value).trim() !== '';
+                    });
+                });
+            };
+
+            const isJsonText = (text) => {
+                if (!text || typeof text !== 'string') return false;
+                try {
+                    JSON.parse(text);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const hasJsonTextChunk = textChunks.some(chunk => isJsonText(chunk.text));
+            const hasPromptTextChunk = textChunks.some(chunk => {
+                const keyLower = (chunk.keyword || '').toLowerCase();
+                return keyLower.includes('prompt') && !isJsonText(chunk.text);
+            });
+            const hasWorkflowJson = metadata.aiMetadata?.hasComfyUI || textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /"nodes"|\"workflow\"/i.test(chunk.text);
+            });
+            const hasLoraJson = (metadata.aiMetadata?.loras && metadata.aiMetadata.loras.length > 0) || textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /lora/i.test(chunk.text);
+            });
+            const hasControlNetJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /controlnet|control_net/i.test(chunk.text);
+            });
+            const hasA1111Json = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /\"prompt\"|\"negative_prompt\"/i.test(chunk.text);
+            });
+            const hasUpscaleJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /upscale|scale/i.test(chunk.text);
+            });
+            const hasSeedHistoryJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /seed|history/i.test(chunk.text);
+            });
+            const hasYamlLike = textChunks.some(chunk => {
+                return /yaml:|training|trained/i.test(chunk.text || '');
+            });
+            const hasCheckpointJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /checkpoint|model_name/i.test(chunk.text);
+            });
+
+            const aiSection = metadata.aiMetadata?.hasComfyUI
+                ? 'section-comfyui'
+                : (metadata.aiMetadata && (metadata.aiMetadata.model || metadata.aiMetadata.prompt) ? 'section-ai' : 'section-full-object');
+
+            const hasJpegAppMarkers = Array.isArray(metadata.chunks) && metadata.chunks.some(segment => {
+                if (!segment || !segment.type) return false;
+                const typeHex = typeof segment.type === 'string' ? segment.type.toLowerCase() : '';
+                if (segment.typeName && segment.typeName.startsWith('APP')) return true;
+                const marker = parseInt(typeHex.replace('0x', ''), 16);
+                return marker >= 0xFFE0 && marker <= 0xFFEF;
+            });
+
+            const hasPngTextChunks = (Array.isArray(metadata.chunks) && metadata.chunks.some(c => ['tEXt', 'zTXt', 'iTXt'].includes(c.type))) || textChunks.length > 0;
+            const hasPngtEXtChunks = Array.isArray(metadata.chunks) && metadata.chunks.some(c => c.type === 'tEXt');
+
             const checks = [
-                { name: 'Camera data', found: metadata.exif && (metadata.exif.Make || metadata.exif.Model), section: 'section-metadata' },
-                { name: 'Geo data', found: metadata.gps, section: 'section-metadata' },
+                { name: 'Camera data', found: Boolean(cameraMake || cameraModel) || hasValueFor('make', 'model') || hasKey('make', 'model'), section: 'section-metadata' },
+                { name: 'Lens data', found: Boolean(lensModel) || hasValueFor('lensmodel', 'lens info', 'lensinfo', 'lens') || hasKey('lens'), section: 'section-metadata' },
                 { name: 'EXIF', found: metadata.exif && Object.keys(metadata.exif).length > 0, section: 'section-metadata' },
-                { name: 'IPTC', found: metadata.exif && metadata.exif.iptc, section: 'section-metadata' },
-                { name: 'XMP', found: metadata.exif && metadata.exif.xmp, section: 'section-metadata' },
-                { name: 'ComfyUI workflow JSON', found: metadata.aiMetadata?.hasComfyUI, section: 'section-comfyui' },
-                { name: 'AI metadata', found: metadata.aiMetadata?.hasComfyUI || metadata.aiMetadata?.hasStableDiffusion, section: 'section-comfyui' },
-                { name: 'Wildcards', found: metadata.aiMetadata?.wildcards && metadata.aiMetadata.wildcards.length > 0, section: 'section-comfyui' },
-                { name: 'Resolved prompt', found: metadata.aiMetadata?.resolvedPrompt, section: 'section-comfyui' },
+                { name: 'IPTC', found: metadata.exif?.iptc || hasKey('iptc'), section: 'section-metadata' },
+                { name: 'XMP', found: metadata.exif?.xmp || hasKey('xmp'), section: 'section-metadata' },
+                { name: 'ICC profiles', found: metadata.exif?.icc || hasKey('icc'), section: 'section-metadata' },
+                { name: 'GPS', found: metadata.gps || metadata.exif?.gps || hasKey('gps'), section: 'section-metadata' },
+                { name: 'TIFF tags', found: metadata.exif?.tiff || hasKey('tiff'), section: 'section-metadata' },
+                { name: 'JPEG APP markers', found: hasJpegAppMarkers, section: 'section-structure-viz' },
+                { name: 'PNG text chunks', found: hasPngTextChunks, section: 'section-structure-viz' },
+                { name: 'Photoshop IRB', found: hasKey('photoshop', 'irb'), section: 'section-metadata' },
+                { name: 'MakerNote', found: hasKey('makernote', 'maker note'), section: 'section-metadata' },
+                { name: 'Thumbnail data', found: hasKey('thumbnail'), section: 'section-metadata' },
+                { name: 'IFD (Image File Directory)', found: hasKey('ifd'), section: 'section-metadata' },
+                { name: 'DNG raw metadata', found: hasKey('dng'), section: 'section-metadata' },
+                { name: 'Rights management', found: hasKey('copyright', 'rights'), section: 'section-metadata' },
+                { name: 'Descriptive keywords', found: hasKey('keyword', 'subject'), section: 'section-metadata' },
+                { name: 'Administrative data', found: hasKey('author', 'creator', 'artist'), section: 'section-metadata' },
+                { name: 'TechSpecs (ISO,etc.)', found: hasKey('iso', 'fnumber', 'exposure', 'shutter', 'aperture'), section: 'section-metadata' },
+                { name: 'PGP signature', found: false, section: 'section-full-object' },
+                { name: 'ComfyUI workflow JSON', found: hasWorkflowJson, section: aiSection },
+                { name: 'Prompt text files (.txt)', found: hasPromptTextChunk, section: aiSection },
+                { name: 'LoRA config JSON', found: hasLoraJson, section: aiSection },
+                { name: 'Model training YAML', found: hasYamlLike, section: aiSection },
+                { name: 'Checkpoint info JSON', found: hasCheckpointJson, section: aiSection },
+                { name: 'YAML prompt templates', found: hasYamlLike, section: aiSection },
+                { name: 'ControlNet JSON', found: hasControlNetJson, section: aiSection },
+                { name: 'A1111 .json prompts', found: hasA1111Json, section: aiSection },
+                { name: 'Metadata JSON embeds', found: hasJsonTextChunk, section: aiSection },
+                { name: 'Custom node configs YAML', found: hasYamlLike, section: aiSection },
+                { name: 'BatchGen logs TXT', found: false, section: aiSection },
+                { name: 'Upscale settings JSON', found: hasUpscaleJson, section: aiSection },
+                { name: 'Seed/history JSON', found: hasSeedHistoryJson, section: aiSection },
+                { name: 'AI metadata', found: metadata.aiMetadata?.hasComfyUI || metadata.aiMetadata?.hasStableDiffusion, section: aiSection },
+                { name: 'Wildcards', found: metadata.aiMetadata?.wildcards && metadata.aiMetadata.wildcards.length > 0, section: aiSection },
+                { name: 'Resolved prompt', found: metadata.aiMetadata?.resolvedPrompt, section: aiSection },
                 { name: 'Structure data', found: metadata.structure, section: 'section-structure' },
                 { name: 'Anomalies', found: metadata.anomalies && metadata.anomalies.flags && metadata.anomalies.flags.length > 0, section: 'section-anomalies' }
             ];
@@ -2088,7 +2528,11 @@
             
             for (const check of checks) {
                 if (check.found) {
-                    html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found" onclick="scrollToSection('${check.section}')" title="Click to jump to section">found</span></span> `;
+                    if (check.section) {
+                        html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found" onclick="scrollToSection('${check.section}')" title="Click to jump to section">found</span></span> `;
+                    } else {
+                        html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found">found</span></span> `;
+                    }
                 } else {
                     html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="not-found">not found</span></span> `;
                 }
@@ -2256,30 +2700,188 @@
         // IMAGE MERGER FUNCTIONALITY
         // ========================================
         
-        let mergeImages = [];
+        // Global metadata cache for cross-tab integration
+        let imageMetadataCache = new Map(); // Maps file.name -> metadata object
+        
+        let mergeItems = []; // Array of {type: 'image'|'empty', data, text, metadata}
         let mergeDirection = 'grid';
         let imageFit = 'contain';
         let gridColumns = 2;
+        let includeEmptyCells = false;
+        let emptyCellPattern = 'after'; // 'before' | 'after'
+        let emptyCellColor = '#ffffff';
+        let selectedCellIndex = 0;
+        let isDraggingText = false;
+        let dragCellIndex = -1;
+        let modalCellIndex = -1;
+        let isDraggingModal = false;
+        let modalOffsetX = 0;
+        let modalOffsetY = 0;
+        let outputScale = 1.0; // Output scale factor (1.0 = 100%)
         
-        // Setup merge upload zone
-        const mergeUploadZone = document.getElementById('mergeUploadZone');
+        // Generate metadata summary text for empty cells
+        function generateMetadataSummary(metadata) {
+            if (!metadata) return '';
+            
+            let summary = [];
+            
+            // Flatten EXIF data for easier access
+            let allExifData = {};
+            if (metadata.exif) {
+                allExifData = { ...metadata.exif };
+                if (metadata.exif.ifd0) Object.assign(allExifData, metadata.exif.ifd0);
+                if (metadata.exif.exif) Object.assign(allExifData, metadata.exif.exif);
+                if (metadata.exif.gps) Object.assign(allExifData, metadata.exif.gps);
+            }
+            
+            // PRIORITY 1: AI Image with Prompt
+            if (metadata.aiMetadata?.hasComfyUI) {
+                const ai = metadata.aiMetadata;
+                
+                // Use resolved prompt if available, otherwise use regular prompt
+                let promptText = ai.resolvedPrompt || ai.prompt;
+                
+                if (promptText) {
+                    // Truncate very long prompts (keep first ~300 chars)
+                    if (promptText.length > 300) {
+                        promptText = promptText.substring(0, 297) + '...';
+                    }
+                    summary.push(promptText);
+                    
+                    // Add model info below prompt
+                    if (ai.model) {
+                        summary.push(`\n📐 ${ai.model}`);
+                    }
+                    
+                    return summary.join('\n');
+                }
+            }
+            
+            // PRIORITY 2: Camera/Lens Info (ONLY camera/lens, no file details)
+            if (allExifData.Make || allExifData.Model || allExifData.LensModel) {
+                // Camera info
+                if (allExifData.Make || allExifData.Model) {
+                    const camera = [allExifData.Make, allExifData.Model].filter(x => x).join(' ').trim();
+                    if (camera) summary.push(`📷 ${camera}`);
+                }
+                
+                // Lens info
+                if (allExifData.LensModel) {
+                    summary.push(`🔍 ${allExifData.LensModel}`);
+                }
+                
+                // Shooting settings on one line
+                let settings = [];
+                if (allExifData.FNumber) {
+                    settings.push(`f/${allExifData.FNumber}`);
+                }
+                if (allExifData.ExposureTime) {
+                    const shutter = allExifData.ExposureTime < 1 ? 
+                        `1/${Math.round(1/allExifData.ExposureTime)}s` : 
+                        `${allExifData.ExposureTime}s`;
+                    settings.push(shutter);
+                }
+                if (allExifData.ISO) {
+                    settings.push(`ISO ${allExifData.ISO}`);
+                }
+                
+                if (settings.length > 0) {
+                    summary.push(settings.join(' · '));
+                }
+                
+                return summary.join('\n');
+            }
+            
+            // PRIORITY 3: GPS Info
+            if (allExifData.GPSLatitude || allExifData.GPSLongitude || allExifData.latitude || allExifData.longitude) {
+                summary.push('📍 Location Info:');
+                
+                const lat = allExifData.latitude || allExifData.GPSLatitude;
+                const lon = allExifData.longitude || allExifData.GPSLongitude;
+                
+                if (lat && lon) {
+                    summary.push(`${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+                }
+                
+                if (allExifData.GPSAltitude) {
+                    summary.push(`Altitude: ${allExifData.GPSAltitude}m`);
+                }
+                
+                return summary.join('\n');
+            }
+            
+            // FALLBACK: Basic file info
+            if (metadata.fileName) {
+                summary.push(metadata.fileName);
+            }
+            
+            // Dimensions
+            if (metadata.exif?.ImageWidth && metadata.exif?.ImageHeight) {
+                summary.push(`${metadata.exif.ImageWidth} × ${metadata.exif.ImageHeight}`);
+            }
+            
+            // Container type and size
+            if (metadata.containerType && metadata.fileSize) {
+                const sizeMB = (metadata.fileSize / (1024 * 1024)).toFixed(2);
+                summary.push(`${metadata.containerType.toUpperCase()} · ${sizeMB} MB`);
+            }
+            
+            return summary.join('\n');
+        }
+        
+        // Initialize default button states
+        function initializeMergerDefaults() {
+            console.log('Initializing merger defaults: Grid + Contain');
+            
+            // Ensure default values are set
+            mergeDirection = 'grid';
+            imageFit = 'contain';
+            gridColumns = 2;
+            
+            // Set default active states for buttons
+            document.querySelectorAll('[id^="merge-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('merge-grid')?.classList.add('active');
+            
+            document.querySelectorAll('[id^="fit-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('fit-contain')?.classList.add('active');
+            
+            // Set default description
+            document.getElementById('fit-description').textContent = 'Scales to fit within cell, maintains aspect ratio';
+            
+            // Show grid columns by default (since grid is default)
+            document.getElementById('grid-columns-container').style.display = 'block';
+            document.getElementById('grid-columns-value').textContent = '2';
+            document.getElementById('grid-columns-slider').value = '2';
+        }
+        
+        // Setup merge upload zone (preview container)
+        const mergePreviewContainer = document.getElementById('merge-preview-container');
         const mergeFileInput = document.getElementById('mergeFileInput');
         
-        if (mergeUploadZone && mergeFileInput) {
-            mergeUploadZone.addEventListener('click', () => mergeFileInput.click());
-            
-            mergeUploadZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                mergeUploadZone.classList.add('drag-over');
+        if (mergePreviewContainer && mergeFileInput) {
+            // Initialize defaults
+            initializeMergerDefaults();
+            mergePreviewContainer.addEventListener('dblclick', (e) => {
+                // Double-click anywhere to add more images
+                if (!e.target.classList.contains('draggable-text')) {
+                    mergeFileInput.click();
+                }
             });
             
-            mergeUploadZone.addEventListener('dragleave', () => {
-                mergeUploadZone.classList.remove('drag-over');
+            mergePreviewContainer.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                mergePreviewContainer.classList.add('drag-over');
             });
             
-            mergeUploadZone.addEventListener('drop', (e) => {
+            mergePreviewContainer.addEventListener('dragleave', (e) => {
+                if (e.target === mergePreviewContainer) {
+                    mergePreviewContainer.classList.remove('drag-over');
+                }
+            });
+            
+            mergePreviewContainer.addEventListener('drop', (e) => {
                 e.preventDefault();
-                mergeUploadZone.classList.remove('drag-over');
+                mergePreviewContainer.classList.remove('drag-over');
                 handleMergeFiles(e.dataTransfer.files);
             });
             
@@ -2288,23 +2890,65 @@
             });
         }
         
-        function handleMergeFiles(files) {
+        async function handleMergeFiles(files) {
             if (!files || files.length === 0) return;
             
             for (const file of files) {
                 if (!file.type.startsWith('image/')) continue;
                 
+                // Extract metadata for this image
+                let metadata = null;
+                
+                // Check if already in cache
+                if (imageMetadataCache.has(file.name)) {
+                    console.log(`Using cached metadata for: ${file.name}`);
+                    metadata = imageMetadataCache.get(file.name).metadata;
+                } else {
+                    // Extract fresh metadata
+                    try {
+                        console.log(`Extracting metadata for: ${file.name}`);
+                        metadata = await extractMetadata(file);
+                        
+                        // Cache it
+                        imageMetadataCache.set(file.name, {
+                            metadata: metadata,
+                            file: file,
+                            timestamp: Date.now()
+                        });
+                    } catch (error) {
+                        console.error(`Failed to extract metadata for ${file.name}:`, error);
+                    }
+                }
+                
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
-                        mergeImages.push({
+                        const isFirstImage = mergeItems.length === 0;
+                        
+                        mergeItems.push({
+                            type: 'image',
                             file: file,
                             dataUrl: e.target.result,
                             img: img,
                             width: img.width,
-                            height: img.height
+                            height: img.height,
+                            metadata: metadata, // Attach metadata
+                            text: {
+                                content: '',
+                                font: 'Arial, sans-serif',
+                                size: 48,
+                                color: '#ffffff',
+                                position: 'center',
+                                opacity: 1.0
+                            }
                         });
+                        
+                        // Reinitialize defaults on first image to ensure they're active
+                        if (isFirstImage) {
+                            initializeMergerDefaults();
+                        }
+                        
                         updateMergeUI();
                     };
                     img.src = e.target.result;
@@ -2313,32 +2957,275 @@
             }
         }
         
+        // Empty Cells Functions
+        function toggleEmptyCells(enabled) {
+            includeEmptyCells = enabled;
+            document.getElementById('empty-cells-options').style.display = enabled ? 'block' : 'none';
+            rebuildMergeItems();
+        }
+        
+        function setEmptyCellPattern(pattern) {
+            emptyCellPattern = pattern;
+            document.querySelectorAll('[id^="pattern-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('pattern-' + pattern).classList.add('active');
+            rebuildMergeItems();
+        }
+        
+        function setEmptyCellColor(color) {
+            emptyCellColor = color;
+            document.getElementById('empty-cell-color').value = color;
+            document.getElementById('empty-cell-color-text').value = color;
+            // Update existing empty cells
+            mergeItems.forEach(item => {
+                if (item.type === 'empty') {
+                    item.color = color;
+                }
+            });
+            updateMergePreview();
+        }
+        
+        function rebuildMergeItems() {
+            // Extract only image items
+            const images = mergeItems.filter(item => item.type === 'image');
+            mergeItems = [];
+            
+            if (!includeEmptyCells) {
+                mergeItems = images;
+            } else {
+                // Apply pattern
+                images.forEach((img, index) => {
+                    if (emptyCellPattern === 'before') {
+                        // Add empty cell before each image
+                        // Use metadata from the image that follows
+                        const metadataSummary = img.metadata ? generateMetadataSummary(img.metadata) : 'Text Here';
+                        
+                        mergeItems.push({
+                            type: 'empty',
+                            color: emptyCellColor,
+                            text: {
+                                content: metadataSummary,
+                                font: 'Arial, sans-serif',
+                                size: 14,
+                                color: '#000000',
+                                position: 'center',
+                                opacity: 1.0
+                            }
+                        });
+                    }
+                    mergeItems.push(img);
+                    if (emptyCellPattern === 'after') {
+                        // Add empty cell after each image
+                        // Use metadata from the image that precedes
+                        const metadataSummary = img.metadata ? generateMetadataSummary(img.metadata) : 'Text Here';
+                        
+                        mergeItems.push({
+                            type: 'empty',
+                            color: emptyCellColor,
+                            text: {
+                                content: metadataSummary,
+                                font: 'Arial, sans-serif',
+                                size: 14,
+                                color: '#000000',
+                                position: 'center',
+                                opacity: 1.0
+                            }
+                        });
+                    }
+                });
+            }
+            
+            updateMergeUI();
+        }
+        
+        // Text Overlay Functions
+        function selectCell(index) {
+            selectedCellIndex = parseInt(index);
+            if (selectedCellIndex >= 0 && selectedCellIndex < mergeItems.length) {
+                const item = mergeItems[selectedCellIndex];
+                document.getElementById('cell-text').value = item.text.content || '';
+                document.getElementById('text-font').value = item.text.font;
+                document.getElementById('text-size').value = item.text.size;
+                document.getElementById('text-size-value').textContent = item.text.size;
+                document.getElementById('text-color').value = item.text.color;
+                document.getElementById('text-color-text').value = item.text.color;
+                document.getElementById('text-opacity').value = Math.round(item.text.opacity * 100);
+                document.getElementById('text-opacity-value').textContent = Math.round(item.text.opacity * 100);
+            }
+        }
+        
+        function updateCellText(text) {
+            if (selectedCellIndex >= 0 && selectedCellIndex < mergeItems.length) {
+                mergeItems[selectedCellIndex].text.content = text;
+                updateMergePreview();
+            }
+        }
+        
+        function updateCellTextStyle(property, value) {
+            if (selectedCellIndex >= 0 && selectedCellIndex < mergeItems.length) {
+                mergeItems[selectedCellIndex].text[property] = value;
+                
+                // Update active state for position buttons
+                if (property === 'position') {
+                    const positionContainer = event.target.parentElement;
+                    positionContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    event.target.classList.add('active');
+                    // Clear custom position when using presets
+                    delete mergeItems[selectedCellIndex].text.customX;
+                    delete mergeItems[selectedCellIndex].text.customY;
+                }
+                
+                // Sync color text field
+                if (property === 'color') {
+                    document.getElementById('text-color-text').value = value;
+                }
+                
+                updateMergePreview();
+            }
+        }
+        
+        // Text Click/Drag Handler
+        let mouseDownTime = 0;
+        let mouseDownX = 0;
+        let mouseDownY = 0;
+        
+        function handleTextMouseDown(event, cellIndex) {
+            event.stopPropagation();
+            mouseDownTime = Date.now();
+            mouseDownX = event.clientX;
+            mouseDownY = event.clientY;
+            dragCellIndex = cellIndex;
+            
+            // Wait to see if this is a drag or a click
+            setTimeout(() => {
+                const timeDiff = Date.now() - mouseDownTime;
+                const moveDiff = Math.abs(event.clientX - mouseDownX) + Math.abs(event.clientY - mouseDownY);
+                
+                if (timeDiff < 200 && moveDiff < 5 && !isDraggingText) {
+                    // It's a click - open modal
+                    openTextModal(cellIndex);
+                }
+            }, 250);
+            
+            startDragText(event, cellIndex);
+        }
+        
+        // Text Drag Functions
+        function startDragText(event, cellIndex) {
+            event.stopPropagation();
+            isDraggingText = false; // Start as false, becomes true on movement
+            dragCellIndex = cellIndex;
+            
+            const textElement = event.target;
+            const cellElement = textElement.parentElement;
+            const cellRect = cellElement.getBoundingClientRect();
+            
+            function onMouseMove(e) {
+                const moveDist = Math.abs(e.clientX - mouseDownX) + Math.abs(e.clientY - mouseDownY);
+                
+                // Start dragging if moved more than 5px
+                if (moveDist > 5) {
+                    isDraggingText = true;
+                }
+                
+                if (!isDraggingText) return;
+                
+                const x = e.clientX - cellRect.left;
+                const y = e.clientY - cellRect.top;
+                
+                // Convert to percentage
+                const percentX = Math.max(10, Math.min(90, (x / cellRect.width) * 100));
+                const percentY = Math.max(10, Math.min(90, (y / cellRect.height) * 100));
+                
+                // Update text position
+                mergeItems[dragCellIndex].text.customX = percentX;
+                mergeItems[dragCellIndex].text.customY = percentY;
+                mergeItems[dragCellIndex].text.position = 'custom';
+                
+                // Update preview
+                textElement.style.left = percentX + '%';
+                textElement.style.top = percentY + '%';
+                textElement.style.transform = 'translate(-50%, -50%)';
+            }
+            
+            function onMouseUp() {
+                isDraggingText = false;
+                dragCellIndex = -1;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                
+                // Deactivate all position preset buttons
+                const positionButtons = document.querySelectorAll('.tab-button');
+                positionButtons.forEach(btn => {
+                    if (btn.textContent.includes('Top') || btn.textContent.includes('Center') || 
+                        btn.textContent.includes('Bottom') || btn.textContent.includes('Left') || 
+                        btn.textContent.includes('Right')) {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+        
         function updateMergeUI() {
             // Update selected images list
             const listContainer = document.getElementById('selected-images-list');
-            if (mergeImages.length === 0) {
+            const imageCount = mergeItems.filter(item => item.type === 'image').length;
+            
+            if (mergeItems.length === 0) {
                 listContainer.innerHTML = '';
                 document.getElementById('merge-download-btn').style.display = 'none';
                 document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+                document.getElementById('selected-cell').innerHTML = '<option value="0">No items yet</option>';
                 return;
             }
             
-            let listHtml = '<div class="metadata-section"><div class="section-title">Selected Images (' + mergeImages.length + ')</div>';
+            let listHtml = '<div class="metadata-section"><div class="section-title">Items (' + mergeItems.length + ')</div>';
             listHtml += '<div style="padding: 10px;">';
             
-            mergeImages.forEach((img, index) => {
+            mergeItems.forEach((item, index) => {
                 listHtml += `<div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: #161b22; margin-bottom: 6px; border-radius: 4px;">`;
-                listHtml += `<img src="${img.dataUrl}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">`;
-                listHtml += `<div style="flex: 1; font-size: 11px; overflow: hidden;">`;
-                listHtml += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.file.name}</div>`;
-                listHtml += `<div style="color: #8b949e;">${img.width}x${img.height}</div>`;
-                listHtml += `</div>`;
-                listHtml += `<button onclick="removeMergeImage(${index})" style="background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;">✕</button>`;
+                
+                if (item.type === 'image') {
+                    listHtml += `<img src="${item.dataUrl}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">`;
+                    listHtml += `<div style="flex: 1; font-size: 11px; overflow: hidden;">`;
+                    listHtml += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.file.name}</div>`;
+                    listHtml += `<div style="color: #8b949e;">${item.width}x${item.height}</div>`;
+                    listHtml += `</div>`;
+                } else {
+                    listHtml += `<div style="width: 40px; height: 40px; background: ${item.color}; border: 1px solid #30363d; border-radius: 3px;"></div>`;
+                    listHtml += `<div style="flex: 1; font-size: 11px;">`;
+                    listHtml += `<div>Empty Cell</div>`;
+                    listHtml += `<div style="color: #8b949e;">${item.color}</div>`;
+                    listHtml += `</div>`;
+                }
+                
+                listHtml += `<button onclick="removeMergeItem(${index})" style="background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;">✕</button>`;
                 listHtml += `</div>`;
             });
             
             listHtml += '</div></div>';
             listContainer.innerHTML = listHtml;
+            
+            // Update cell selector dropdown
+            const cellSelector = document.getElementById('selected-cell');
+            let selectorHtml = '';
+            mergeItems.forEach((item, index) => {
+                if (item.type === 'image') {
+                    selectorHtml += `<option value="${index}">Image ${index + 1} - ${item.file.name.substring(0, 20)}</option>`;
+                } else {
+                    selectorHtml += `<option value="${index}">Empty Cell ${index + 1}</option>`;
+                }
+            });
+            cellSelector.innerHTML = selectorHtml;
+            
+            // Select first item by default
+            if (selectedCellIndex >= mergeItems.length) {
+                selectedCellIndex = 0;
+            }
+            cellSelector.value = selectedCellIndex;
+            selectCell(selectedCellIndex);
             
             // Show download button
             document.getElementById('merge-download-btn').style.display = 'block';
@@ -2347,9 +3234,14 @@
             updateMergePreview();
         }
         
-        function removeMergeImage(index) {
-            mergeImages.splice(index, 1);
-            updateMergeUI();
+        function removeMergeItem(index) {
+            mergeItems.splice(index, 1);
+            // If we removed an image, rebuild to maintain empty cell pattern
+            if (includeEmptyCells) {
+                rebuildMergeItems();
+            } else {
+                updateMergeUI();
+            }
         }
         
         function setMergeDirection(direction) {
@@ -2391,25 +3283,31 @@
         }
         
         function calculateMergeDimensions() {
-            if (mergeImages.length === 0) return null;
+            if (mergeItems.length === 0) return null;
             
-            // Find max dimensions for cell sizing
+            // Find max dimensions for cell sizing (only from images)
             let cellWidth = 0, cellHeight = 0;
-            mergeImages.forEach(img => {
-                cellWidth = Math.max(cellWidth, img.width);
-                cellHeight = Math.max(cellHeight, img.height);
+            mergeItems.forEach(item => {
+                if (item.type === 'image') {
+                    cellWidth = Math.max(cellWidth, item.width);
+                    cellHeight = Math.max(cellHeight, item.height);
+                }
             });
+            
+            // Default cell size if no images
+            if (cellWidth === 0) cellWidth = 800;
+            if (cellHeight === 0) cellHeight = 600;
             
             let canvasWidth, canvasHeight;
             
             if (mergeDirection === 'horizontal') {
-                canvasWidth = cellWidth * mergeImages.length;
+                canvasWidth = cellWidth * mergeItems.length;
                 canvasHeight = cellHeight;
             } else if (mergeDirection === 'vertical') {
                 canvasWidth = cellWidth;
-                canvasHeight = cellHeight * mergeImages.length;
+                canvasHeight = cellHeight * mergeItems.length;
             } else { // grid
-                const rows = Math.ceil(mergeImages.length / gridColumns);
+                const rows = Math.ceil(mergeItems.length / gridColumns);
                 canvasWidth = cellWidth * gridColumns;
                 canvasHeight = cellHeight * rows;
             }
@@ -2418,14 +3316,32 @@
         }
         
         function updateMergePreview() {
-            if (mergeImages.length === 0) {
-                document.getElementById('merge-preview').innerHTML = '<p class="info">Add images to see preview</p>';
+            const preview = document.getElementById('merge-preview');
+            
+            if (mergeItems.length === 0) {
+                preview.style.display = 'flex';
+                preview.style.alignItems = 'center';
+                preview.style.justifyContent = 'center';
+                preview.innerHTML = `
+                    <div style="text-align: center;">
+                        <div class="upload-icon" style="font-size: 48px; margin-bottom: 20px;">[   ]</div>
+                        <div style="font-size: 14px; color: #c9d1d9; margin-bottom: 10px;">Click or drag files here to merge</div>
+                        <div class="info" style="font-size: 11px;">
+                            Supports: JPEG, PNG, TIFF, HEIC<br>
+                            All processing happens in your browser
+                        </div>
+                    </div>
+                `;
                 document.getElementById('output-dimensions').style.display = 'none';
                 return;
             }
             
+            // Reset to normal display for preview grid
+            preview.style.display = 'block';
+            preview.style.alignItems = '';
+            preview.style.justifyContent = '';
+            
             const dims = calculateMergeDimensions();
-            const preview = document.getElementById('merge-preview');
             
             // Show final dimensions
             const dimsDisplay = document.getElementById('output-dimensions');
@@ -2452,20 +3368,71 @@
             let gridStyle = `display: grid; gap: 2px; width: ${previewWidth}px; height: ${previewHeight}px; margin: 0 auto;`;
             
             if (mergeDirection === 'horizontal') {
-                gridStyle += ` grid-template-columns: repeat(${mergeImages.length}, 1fr);`;
+                gridStyle += ` grid-template-columns: repeat(${mergeItems.length}, 1fr); grid-template-rows: 1fr; grid-auto-flow: column;`;
             } else if (mergeDirection === 'vertical') {
-                gridStyle += ` grid-template-rows: repeat(${mergeImages.length}, 1fr);`;
+                gridStyle += ` grid-template-rows: repeat(${mergeItems.length}, 1fr); grid-template-columns: 1fr; grid-auto-flow: row;`;
             } else { // grid (default)
-                const rows = Math.ceil(mergeImages.length / gridColumns);
+                const rows = Math.ceil(mergeItems.length / gridColumns);
                 gridStyle += ` grid-template-columns: repeat(${gridColumns}, 1fr); grid-template-rows: repeat(${rows}, 1fr);`;
             }
             
             let html = `<div style="${gridStyle}">`;
             
-            mergeImages.forEach(img => {
-                const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
-                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: #000;">`;
-                html += `<img src="${img.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle};">`;
+            mergeItems.forEach((item, index) => {
+                html += `<div style="border: 1px solid #30363d; overflow: hidden; background: ${item.type === 'empty' ? item.color : '#000'}; position: relative; display: flex; align-items: center; justify-content: center;">`;
+                
+                if (item.type === 'image') {
+                    const fitStyle = imageFit === 'cover' ? 'cover' : imageFit === 'contain' ? 'contain' : imageFit === 'fill' ? 'fill' : 'scale-down';
+                    html += `<img src="${item.dataUrl}" style="width: 100%; height: 100%; object-fit: ${fitStyle}; position: absolute; top: 0; left: 0;">`;
+                }
+                
+                // Render text overlay if present
+                if (item.text && item.text.content) {
+                    const textStyle = `
+                        position: absolute;
+                        color: ${item.text.color};
+                        font-family: ${item.text.font};
+                        font-size: ${Math.max(12, item.text.size * (previewWidth / dims.width))}px;
+                        opacity: ${item.text.opacity};
+                        white-space: pre-wrap;
+                        text-align: center;
+                        padding: 10px;
+                        max-width: 90%;
+                        word-wrap: break-word;
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+                        cursor: move;
+                        user-select: none;
+                        pointer-events: auto;
+                    `;
+                    
+                    let positionStyle = '';
+                    
+                    // Check if custom position exists
+                    if (item.text.customX !== undefined && item.text.customY !== undefined) {
+                        positionStyle = `left: ${item.text.customX}%; top: ${item.text.customY}%; transform: translate(-50%, -50%);`;
+                    } else {
+                        // Use preset positions
+                        switch(item.text.position) {
+                            case 'top':
+                                positionStyle = 'top: 10px; left: 50%; transform: translateX(-50%);';
+                                break;
+                            case 'bottom':
+                                positionStyle = 'bottom: 10px; left: 50%; transform: translateX(-50%);';
+                                break;
+                            case 'left':
+                                positionStyle = 'left: 10px; top: 50%; transform: translateY(-50%); text-align: left;';
+                                break;
+                            case 'right':
+                                positionStyle = 'right: 10px; top: 50%; transform: translateY(-50%); text-align: right;';
+                                break;
+                            default: // center
+                                positionStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+                        }
+                    }
+                    
+                    html += `<div class="draggable-text" data-cell-index="${index}" onmousedown="handleTextMouseDown(event, ${index})" style="${textStyle} ${positionStyle}">${escapeHtml(item.text.content)}</div>`;
+                }
+                
                 html += `</div>`;
             });
             
@@ -2473,15 +3440,192 @@
             preview.innerHTML = html;
         }
         
+        // Text Edit Modal Functions
+        function openTextModal(cellIndex) {
+            if (isDraggingText) return; // Don't open if we're dragging
+            
+            modalCellIndex = cellIndex;
+            const modal = document.getElementById('text-edit-modal');
+            
+            // Load current text and settings
+            if (cellIndex >= 0 && cellIndex < mergeItems.length) {
+                const textConfig = mergeItems[cellIndex].text;
+                document.getElementById('modal-text-input').value = textConfig.content || '';
+                document.getElementById('modal-text-font').value = textConfig.font;
+                document.getElementById('modal-text-size').value = textConfig.size;
+                document.getElementById('modal-text-size-value').textContent = textConfig.size;
+                document.getElementById('modal-text-color').value = textConfig.color;
+                document.getElementById('modal-text-color-text').value = textConfig.color;
+                document.getElementById('modal-text-opacity').value = Math.round(textConfig.opacity * 100);
+                document.getElementById('modal-text-opacity-value').textContent = Math.round(textConfig.opacity * 100);
+            }
+            
+            // Show modal
+            modal.style.display = 'flex';
+            document.getElementById('modal-text-input').focus();
+            document.getElementById('modal-text-input').select();
+            
+            // Setup modal dragging
+            const modalContent = document.getElementById('modal-content');
+            const modalHeader = document.getElementById('modal-header');
+            
+            modalHeader.onmousedown = function(e) {
+                isDraggingModal = true;
+                const rect = modalContent.getBoundingClientRect();
+                modalOffsetX = e.clientX - rect.left;
+                modalOffsetY = e.clientY - rect.top;
+            };
+            
+            // Setup live updates
+            document.getElementById('modal-text-size').oninput = function(e) {
+                document.getElementById('modal-text-size-value').textContent = e.target.value;
+            };
+            
+            document.getElementById('modal-text-opacity').oninput = function(e) {
+                document.getElementById('modal-text-opacity-value').textContent = e.target.value;
+            };
+            
+            document.getElementById('modal-text-color').onchange = function(e) {
+                document.getElementById('modal-text-color-text').value = e.target.value;
+            };
+            
+            document.getElementById('modal-text-color-text').onchange = function(e) {
+                document.getElementById('modal-text-color').value = e.target.value;
+            };
+            
+            // Handle Escape key
+            document.getElementById('modal-text-input').onkeydown = function(e) {
+                if (e.key === 'Escape') {
+                    closeTextModal(false);
+                }
+            };
+        }
+        
+        function closeTextModal(save) {
+            const modal = document.getElementById('text-edit-modal');
+            
+            if (save && modalCellIndex >= 0 && modalCellIndex < mergeItems.length) {
+                // Save all settings
+                mergeItems[modalCellIndex].text.content = document.getElementById('modal-text-input').value;
+                mergeItems[modalCellIndex].text.font = document.getElementById('modal-text-font').value;
+                mergeItems[modalCellIndex].text.size = parseInt(document.getElementById('modal-text-size').value);
+                mergeItems[modalCellIndex].text.color = document.getElementById('modal-text-color').value;
+                mergeItems[modalCellIndex].text.opacity = parseInt(document.getElementById('modal-text-opacity').value) / 100;
+                
+                updateMergePreview();
+            }
+            
+            modal.style.display = 'none';
+            modalCellIndex = -1;
+            
+            // Clean up
+            const modalContent = document.getElementById('modal-content');
+            modalContent.style.left = '';
+            modalContent.style.top = '';
+            modalContent.style.transform = '';
+        }
+        
+        // Output Size Modal Functions
+        function openOutputSizeModal() {
+            if (mergeItems.length === 0) return;
+            
+            const dims = calculateMergeDimensions();
+            const modal = document.getElementById('output-size-modal');
+            
+            // Show current dimensions
+            document.getElementById('output-size-current').textContent = `${dims.width} × ${dims.height}px`;
+            
+            // Update preview based on current scale
+            updateOutputSizePreview();
+            
+            // Reset to 100% scale
+            outputScale = 1.0;
+            document.querySelectorAll('[id^="scale-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('scale-100').classList.add('active');
+            document.getElementById('custom-scale-input').style.display = 'none';
+            
+            modal.style.display = 'flex';
+        }
+        
+        function closeOutputSizeModal() {
+            document.getElementById('output-size-modal').style.display = 'none';
+        }
+        
+        function setOutputScale(scale) {
+            // Update button states
+            document.querySelectorAll('[id^="scale-"]').forEach(btn => btn.classList.remove('active'));
+            
+            if (scale === 'custom') {
+                document.getElementById('scale-custom').classList.add('active');
+                document.getElementById('custom-scale-input').style.display = 'block';
+                outputScale = parseFloat(document.getElementById('custom-scale-slider').value) / 100;
+            } else {
+                document.getElementById('scale-' + (scale * 100)).classList.add('active');
+                document.getElementById('custom-scale-input').style.display = 'none';
+                outputScale = scale;
+            }
+            
+            updateOutputSizePreview();
+        }
+        
+        function updateCustomScale(value) {
+            outputScale = parseFloat(value) / 100;
+            document.getElementById('custom-scale-value').textContent = value;
+            document.getElementById('custom-scale-slider').value = value;
+            document.getElementById('custom-scale-number').value = value;
+            updateOutputSizePreview();
+        }
+        
+        function updateOutputSizePreview() {
+            const dims = calculateMergeDimensions();
+            const scaledWidth = Math.round(dims.width * outputScale);
+            const scaledHeight = Math.round(dims.height * outputScale);
+            const scaledSize = Math.round((scaledWidth * scaledHeight * 4) / (1024 * 1024)); // Rough MB estimate
+            
+            document.getElementById('output-size-preview').textContent = 
+                `Scaled: ${scaledWidth} × ${scaledHeight}px (~${scaledSize}MB)`;
+        }
+        
+        function proceedWithDownload() {
+            closeOutputSizeModal();
+            downloadMergedImage();
+        }
+        
+        // Setup modal dragging globally
+        document.addEventListener('mousemove', function(e) {
+            if (isDraggingModal) {
+                const modalContent = document.getElementById('modal-content');
+                modalContent.style.position = 'fixed';
+                modalContent.style.left = (e.clientX - modalOffsetX) + 'px';
+                modalContent.style.top = (e.clientY - modalOffsetY) + 'px';
+                modalContent.style.transform = 'none';
+            }
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (isDraggingModal) {
+                isDraggingModal = false;
+            }
+        });
+        
+        // Close modal when clicking outside
+        document.getElementById('text-edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTextModal(false);
+            }
+        });
+        
         async function downloadMergedImage() {
-            if (mergeImages.length === 0) return;
+            if (mergeItems.length === 0) return;
             
             // Calculate canvas dimensions using shared function
             const dims = calculateMergeDimensions();
-            const canvasWidth = dims.width;
-            const canvasHeight = dims.height;
-            const cellWidth = dims.cellWidth;
-            const cellHeight = dims.cellHeight;
+            
+            // Apply output scale
+            const canvasWidth = Math.round(dims.width * outputScale);
+            const canvasHeight = Math.round(dims.height * outputScale);
+            const cellWidth = Math.round(dims.cellWidth * outputScale);
+            const cellHeight = Math.round(dims.cellHeight * outputScale);
             
             // Create canvas
             const canvas = document.createElement('canvas');
@@ -2493,8 +3637,8 @@
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             
-            // Draw images
-            mergeImages.forEach((imgData, index) => {
+            // Draw items (images and empty cells)
+            mergeItems.forEach((item, index) => {
                 let x, y;
                 
                 if (mergeDirection === 'horizontal') {
@@ -2510,20 +3654,112 @@
                     y = row * cellHeight;
                 }
                 
-                // Calculate image positioning based on fit mode
-                if (imageFit === 'cover' || imageFit === 'contain') {
-                    const scale = imageFit === 'cover' 
-                        ? Math.max(cellWidth / imgData.width, cellHeight / imgData.height)
-                        : Math.min(cellWidth / imgData.width, cellHeight / imgData.height);
+                if (item.type === 'image') {
+                    // Draw image
+                    if (imageFit === 'cover' || imageFit === 'contain') {
+                        const scale = imageFit === 'cover' 
+                            ? Math.max(cellWidth / item.width, cellHeight / item.height)
+                            : Math.min(cellWidth / item.width, cellHeight / item.height);
+                        
+                        const scaledWidth = item.width * scale;
+                        const scaledHeight = item.height * scale;
+                        const offsetX = (cellWidth - scaledWidth) / 2;
+                        const offsetY = (cellHeight - scaledHeight) / 2;
+                        
+                        ctx.drawImage(item.img, x + offsetX, y + offsetY, scaledWidth, scaledHeight);
+                    } else { // fill or scale-down
+                        ctx.drawImage(item.img, x, y, cellWidth, cellHeight);
+                    }
+                } else {
+                    // Draw empty cell
+                    ctx.fillStyle = item.color;
+                    ctx.fillRect(x, y, cellWidth, cellHeight);
+                }
+                
+                // Draw text overlay if present
+                if (item.text && item.text.content) {
+                    ctx.save();
+                    ctx.font = `${item.text.size}px ${item.text.font}`;
+                    ctx.fillStyle = item.text.color;
+                    ctx.globalAlpha = item.text.opacity;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
                     
-                    const scaledWidth = imgData.width * scale;
-                    const scaledHeight = imgData.height * scale;
-                    const offsetX = (cellWidth - scaledWidth) / 2;
-                    const offsetY = (cellHeight - scaledHeight) / 2;
+                    // Add text shadow for better visibility
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 2;
                     
-                    ctx.drawImage(imgData.img, x + offsetX, y + offsetY, scaledWidth, scaledHeight);
-                } else { // fill or scale-down
-                    ctx.drawImage(imgData.img, x, y, cellWidth, cellHeight);
+                    // Calculate text position
+                    let textX, textY;
+                    const padding = 20;
+                    
+                    // Check for custom position first
+                    if (item.text.customX !== undefined && item.text.customY !== undefined) {
+                        textX = x + (cellWidth * item.text.customX / 100);
+                        textY = y + (cellHeight * item.text.customY / 100);
+                    } else {
+                        // Use preset positions
+                        switch(item.text.position) {
+                            case 'top':
+                                textX = x + cellWidth / 2;
+                                textY = y + item.text.size + padding;
+                                break;
+                            case 'bottom':
+                                textX = x + cellWidth / 2;
+                                textY = y + cellHeight - padding;
+                                break;
+                            case 'left':
+                                textX = x + padding;
+                                textY = y + cellHeight / 2;
+                                ctx.textAlign = 'left';
+                                break;
+                            case 'right':
+                                textX = x + cellWidth - padding;
+                                textY = y + cellHeight / 2;
+                                ctx.textAlign = 'right';
+                                break;
+                            default: // center
+                                textX = x + cellWidth / 2;
+                                textY = y + cellHeight / 2;
+                        }
+                    }
+                    
+                    // Wrap text if too long
+                    const maxWidth = cellWidth - (padding * 2);
+                    const words = item.text.content.split(' ');
+                    let lines = [];
+                    let currentLine = words[0];
+                    
+                    for (let i = 1; i < words.length; i++) {
+                        const testLine = currentLine + ' ' + words[i];
+                        const metrics = ctx.measureText(testLine);
+                        if (metrics.width > maxWidth) {
+                            lines.push(currentLine);
+                            currentLine = words[i];
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+                    lines.push(currentLine);
+                    
+                    // Draw each line
+                    const lineHeight = item.text.size * 1.2;
+                    const totalHeight = lines.length * lineHeight;
+                    let startY = textY - (totalHeight / 2) + (lineHeight / 2);
+                    
+                    if (item.text.position === 'top') {
+                        startY = textY;
+                    } else if (item.text.position === 'bottom') {
+                        startY = textY - totalHeight + lineHeight;
+                    }
+                    
+                    lines.forEach((line, i) => {
+                        ctx.fillText(line, textX, startY + (i * lineHeight));
+                    });
+                    
+                    ctx.restore();
                 }
             });
             
