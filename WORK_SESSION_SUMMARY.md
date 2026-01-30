@@ -83,7 +83,6 @@ The branch is now **ready for testing** with real images. The core functionality
 Estimated: ~3 hours (not 12-16 as originally estimated)
 
 ### Notes
-- Python reference implementation in `bareblocks-web.py` (lines 700-1000)
 - Local server running on port 8080
 - All major blockers resolved
 - Feature parity with Python version achieved for core functionality

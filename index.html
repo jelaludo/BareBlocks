@@ -344,14 +344,87 @@
             margin: 6px 0;
             font-size: 11px;
             line-height: 1.5;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0 8px;
         }
         
         .recap-item {
-            display: inline-block;
+            display: block;
+            padding: 2px 6px;
+            border: 1px solid #21262d;
+            border-radius: 4px;
+            background: #0d1117;
             white-space: nowrap;
+        }
+
+        /* Parsing flow */
+        .parsing-flow-content {
+            display: none;
+            padding: 15px 20px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+        
+        .parsing-flow-content.active {
+            display: block;
+        }
+        
+        .parsing-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 10px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .parsing-flow-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .parsing-flow-phase {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        
+        .parsing-flow-content h3 {
+            color: #89D185;
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            font-weight: bold;
+        }
+        
+        .parsing-flow-content .phase-desc {
+            color: #8b949e;
+            margin-left: 0;
+            margin-bottom: 0;
+            white-space: pre-line;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+        
+        .parsing-flow-content .phase-title {
+            color: #6FC3DF;
+            font-weight: bold;
+        }
+        
+        .flow-status-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .flow-status-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         
         /* Category colors for table headers */
@@ -732,6 +805,45 @@
                 </div>
                 <input type="file" id="fileInput" accept="image/*">
                 <div id="output"></div>
+                <div class="parsing-flow-content" id="parsingFlowPanel">
+                    <div class="parsing-flow-grid">
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 0: Orchestration</span></h3><div class="phase-desc">Entry point: file selected or dropped
+Routes to parser based on container type
+Aggregates results into final report</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 1: File Intake</span></h3><div class="phase-desc">Reads file in browser (File API)
+Validates size and type
+Records basic file info (name, size, mime)</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 2: Container Identification</span></h3><div class="phase-desc">Reads first 8-16 bytes (magic bytes)
+Matches known signatures:
+  PNG: 89 50 4E 47 0D 0A 1A 0A
+  JPEG: FF D8 FF
+  WEBP: RIFF....WEBP
+Returns container type and confidence</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 3: Structural Enumeration</span></h3><div class="phase-desc">PNG: iterate chunks (length, type, data, CRC)
+JPEG: iterate segments (marker, length, payload)
+Classifies pixel vs metadata areas
+Returns chunk/segment list and byte totals</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 4: Declared Metadata</span></h3><div class="phase-desc">Uses exifr for EXIF/IPTC/XMP
+Extracts GPS and camera fields
+Returns structured metadata object</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 5: Opaque Payload Detection</span></h3><div class="phase-desc">PNG text chunks (tEXt, zTXt, iTXt)
+Attempts UTF-8 decode and JSON parse
+Classifies: json, text, or binary
+Returns payload list with sizes and sources</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 6: AI Pattern Recognition</span></h3><div class="phase-desc">Scans payloads for ComfyUI/SD patterns
+Looks for workflow nodes and prompt text
+Returns AI metadata summary</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 7: Anomaly Heuristics</span></h3><div class="phase-desc">Computes non-pixel ratio
+Flags large metadata payloads
+Returns anomaly stats and flags</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">Phase 8: Report Assembly</span></h3><div class="phase-desc">Merges: summary, structure, metadata, payloads, ai, anomalies
+Formats for table rendering
+Ready for UI display</div></div>
+                        <div class="parsing-flow-phase"><h3><span class="phase-title">UI Rendering</span></h3><div class="phase-desc">Renders tables and collapsible sections
+Enables copy/export actions
+Everything stays client-side</div></div>
+                    </div>
+                </div>
             </div>
             
             <!-- Image Tools Tab -->
@@ -972,6 +1084,8 @@
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
         const output = document.getElementById('output');
+        const parsingFlowPanel = document.getElementById('parsingFlowPanel');
+        let isParsingFlowVisible = false;
         
         uploadZone.addEventListener('click', () => fileInput.click());
         
@@ -997,6 +1111,48 @@
                 processFile(e.target.files[0]);
             }
         });
+
+        function resetParsingFlowView() {
+            isParsingFlowVisible = false;
+            if (parsingFlowPanel) {
+                parsingFlowPanel.classList.remove('active');
+            }
+            const metadataBody = document.getElementById('metadataBody');
+            if (metadataBody) {
+                metadataBody.style.display = 'block';
+            }
+            const toggleBtn = document.getElementById('parsingFlowToggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = '[ Parsing Flow ]';
+            }
+            const backBtn = document.getElementById('parsingFlowBack');
+            if (backBtn) {
+                backBtn.style.display = 'none';
+            }
+        }
+
+        function toggleParsingFlow() {
+            const metadataBody = document.getElementById('metadataBody');
+            if (!parsingFlowPanel || !metadataBody) {
+                return;
+            }
+            isParsingFlowVisible = !isParsingFlowVisible;
+            if (isParsingFlowVisible) {
+                parsingFlowPanel.classList.add('active');
+                metadataBody.style.display = 'none';
+            } else {
+                parsingFlowPanel.classList.remove('active');
+                metadataBody.style.display = 'block';
+            }
+            const toggleBtn = document.getElementById('parsingFlowToggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = '[ Parsing Flow ]';
+            }
+            const backBtn = document.getElementById('parsingFlowBack');
+            if (backBtn) {
+                backBtn.style.display = isParsingFlowVisible ? 'inline-block' : 'none';
+            }
+        }
         
         // Main file processing function
         async function processFile(file) {
@@ -1914,12 +2070,16 @@
         
         // Display metadata in terminal
         function displayMetadata(metadata) {
-            let html = '<div class="output-line success">Metadata extracted successfully <span class="copy-text-btn" onclick="exportJSON()" style="cursor:pointer; color:#6FC3DF; margin-left: 15px;">[ Export JSON ]</span></div>';
-            
-            // Data Recap section - at the very top
-            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
-            html += createDataRecap(metadata);
-            html += '</div>';
+            resetParsingFlowView();
+            let html = `<div class="output-line success flow-status-line">
+                <span>Metadata extracted successfully</span>
+                <span class="flow-status-actions">
+                    <span class="copy-text-btn" id="parsingFlowBack" onclick="toggleParsingFlow()" style="cursor:pointer; color:#6FC3DF; display: none;">[ Back to Metadata ]</span>
+                    <span class="copy-text-btn" onclick="exportJSON()" style="cursor:pointer; color:#6FC3DF;">[ Export JSON ]</span>
+                    <span class="copy-text-btn" id="parsingFlowToggle" onclick="toggleParsingFlow()" style="cursor:pointer; color:#6FC3DF;">[ Parsing Flow ]</span>
+                </span>
+            </div>`;
+            html += '<div id="metadataBody">';
             
             // Summary section (merged Smart Summary + regular Summary)
             html += '<div class="metadata-section"><div class="section-title category-structure">Summary</div>';
@@ -1971,7 +2131,17 @@
                             displayDate = date.toLocaleString();
                         }
                     }
-                    html += `<tr><td>Date Created</td><td>${escapeHtml(String(displayDate))}</td></tr>`;
+                    const displayDateText = String(displayDate);
+                    const yearMatch = displayDateText.match(/\b(\d{4})\b/);
+                    let safeDateText = escapeHtml(displayDateText);
+                    if (yearMatch) {
+                        const yearToken = escapeHtml(yearMatch[1]);
+                        safeDateText = safeDateText.replace(
+                            yearToken,
+                            `<span class="category-structure">${yearToken}</span>`
+                        );
+                    }
+                    html += `<tr><td>Date Created</td><td>${safeDateText}</td></tr>`;
                 }
             }
             
@@ -2056,6 +2226,11 @@
             }
             
             html += '</tbody></table></div>';
+            
+            // Data Recap section
+            html += '<div class="metadata-section"><div class="section-title">Data Recap</div>';
+            html += createDataRecap(metadata);
+            html += '</div>';
             
             // ComfyUI Workflow section
             if (metadata.aiMetadata && metadata.aiMetadata.hasComfyUI) {
@@ -2180,7 +2355,7 @@
             }
             
             // Bottom raw data display
-            html += '<div class="metadata-section"><div class="section-title">Full Object Display</div>';
+            html += '<div class="metadata-section" id="section-full-object"><div class="section-title">Full Object Display</div>';
             html += '<p class="info" style="margin-bottom: 10px;">All extracted data in structured format:</p>';
             html += createMetadataTableHTML({
                 summary: metadata.fileName ? { fileName: metadata.fileName, fileSize: metadata.fileSize, containerType: metadata.containerType } : null,
@@ -2193,7 +2368,7 @@
             html += '</div>';
             
             // File Structure Visualization (Chunks) - at the very bottom
-            html += '<div class="metadata-section" style="margin-top: 20px;"><div class="section-title category-structure">File Structure Visualization</div>';
+            html += '<div class="metadata-section" id="section-structure-viz" style="margin-top: 20px;"><div class="section-title category-structure">File Structure Visualization</div>';
             html += '<div id="chunksVisualizationInline"></div>';
             html += '</div>';
             
@@ -2207,16 +2382,144 @@
         
         // Create Data Recap section
         function createDataRecap(metadata) {
+            const textChunks = metadata.pngTextChunks || [];
+            const exifKeys = [];
+            const exifValues = {};
+
+            const collectExif = (obj) => {
+                if (!obj || typeof obj !== 'object') return;
+                for (const [key, value] of Object.entries(obj)) {
+                    const lowerKey = String(key).toLowerCase();
+                    exifKeys.push(lowerKey);
+                    if (value && typeof value === 'object' && !Array.isArray(value)) {
+                        collectExif(value);
+                    } else if (value !== undefined && value !== null && String(value).trim() !== '') {
+                        exifValues[lowerKey] = value;
+                    }
+                }
+            };
+
+            collectExif(metadata.exif);
+
+            const allExifData = (() => {
+                const combined = {};
+                if (metadata.exif) {
+                    Object.assign(combined, metadata.exif);
+                    if (metadata.exif.ifd0) Object.assign(combined, metadata.exif.ifd0);
+                    if (metadata.exif.exif) Object.assign(combined, metadata.exif.exif);
+                    if (metadata.exif.gps) Object.assign(combined, metadata.exif.gps);
+                }
+                return combined;
+            })();
+
+            const cameraModel = allExifData.Model || allExifData['272'] || null;
+            const cameraMake = allExifData.Make || null;
+            const lensModel = allExifData.LensModel || allExifData['42036'] || allExifData.LensInfo || null;
+
+            const hasKey = (...terms) => {
+                return terms.some(term => exifKeys.some(key => key.includes(term)));
+            };
+
+            const hasValueFor = (...terms) => {
+                return terms.some(term => {
+                    return Object.entries(exifValues).some(([key, value]) => {
+                        return key.includes(term) && String(value).trim() !== '';
+                    });
+                });
+            };
+
+            const isJsonText = (text) => {
+                if (!text || typeof text !== 'string') return false;
+                try {
+                    JSON.parse(text);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const hasJsonTextChunk = textChunks.some(chunk => isJsonText(chunk.text));
+            const hasPromptTextChunk = textChunks.some(chunk => {
+                const keyLower = (chunk.keyword || '').toLowerCase();
+                return keyLower.includes('prompt') && !isJsonText(chunk.text);
+            });
+            const hasWorkflowJson = metadata.aiMetadata?.hasComfyUI || textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /"nodes"|\"workflow\"/i.test(chunk.text);
+            });
+            const hasLoraJson = (metadata.aiMetadata?.loras && metadata.aiMetadata.loras.length > 0) || textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /lora/i.test(chunk.text);
+            });
+            const hasControlNetJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /controlnet|control_net/i.test(chunk.text);
+            });
+            const hasA1111Json = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /\"prompt\"|\"negative_prompt\"/i.test(chunk.text);
+            });
+            const hasUpscaleJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /upscale|scale/i.test(chunk.text);
+            });
+            const hasSeedHistoryJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /seed|history/i.test(chunk.text);
+            });
+            const hasYamlLike = textChunks.some(chunk => {
+                return /yaml:|training|trained/i.test(chunk.text || '');
+            });
+            const hasCheckpointJson = textChunks.some(chunk => {
+                return isJsonText(chunk.text) && /checkpoint|model_name/i.test(chunk.text);
+            });
+
+            const aiSection = metadata.aiMetadata?.hasComfyUI
+                ? 'section-comfyui'
+                : (metadata.aiMetadata && (metadata.aiMetadata.model || metadata.aiMetadata.prompt) ? 'section-ai' : 'section-full-object');
+
+            const hasJpegAppMarkers = Array.isArray(metadata.chunks) && metadata.chunks.some(segment => {
+                if (!segment || !segment.type) return false;
+                const typeHex = typeof segment.type === 'string' ? segment.type.toLowerCase() : '';
+                if (segment.typeName && segment.typeName.startsWith('APP')) return true;
+                const marker = parseInt(typeHex.replace('0x', ''), 16);
+                return marker >= 0xFFE0 && marker <= 0xFFEF;
+            });
+
+            const hasPngTextChunks = (Array.isArray(metadata.chunks) && metadata.chunks.some(c => ['tEXt', 'zTXt', 'iTXt'].includes(c.type))) || textChunks.length > 0;
+            const hasPngtEXtChunks = Array.isArray(metadata.chunks) && metadata.chunks.some(c => c.type === 'tEXt');
+
             const checks = [
-                { name: 'Camera data', found: metadata.exif && (metadata.exif.Make || metadata.exif.Model), section: 'section-metadata' },
-                { name: 'Geo data', found: metadata.gps, section: 'section-metadata' },
+                { name: 'Camera data', found: Boolean(cameraMake || cameraModel) || hasValueFor('make', 'model') || hasKey('make', 'model'), section: 'section-metadata' },
+                { name: 'Lens data', found: Boolean(lensModel) || hasValueFor('lensmodel', 'lens info', 'lensinfo', 'lens') || hasKey('lens'), section: 'section-metadata' },
                 { name: 'EXIF', found: metadata.exif && Object.keys(metadata.exif).length > 0, section: 'section-metadata' },
-                { name: 'IPTC', found: metadata.exif && metadata.exif.iptc, section: 'section-metadata' },
-                { name: 'XMP', found: metadata.exif && metadata.exif.xmp, section: 'section-metadata' },
-                { name: 'ComfyUI workflow JSON', found: metadata.aiMetadata?.hasComfyUI, section: 'section-comfyui' },
-                { name: 'AI metadata', found: metadata.aiMetadata?.hasComfyUI || metadata.aiMetadata?.hasStableDiffusion, section: 'section-comfyui' },
-                { name: 'Wildcards', found: metadata.aiMetadata?.wildcards && metadata.aiMetadata.wildcards.length > 0, section: 'section-comfyui' },
-                { name: 'Resolved prompt', found: metadata.aiMetadata?.resolvedPrompt, section: 'section-comfyui' },
+                { name: 'IPTC', found: metadata.exif?.iptc || hasKey('iptc'), section: 'section-metadata' },
+                { name: 'XMP', found: metadata.exif?.xmp || hasKey('xmp'), section: 'section-metadata' },
+                { name: 'ICC profiles', found: metadata.exif?.icc || hasKey('icc'), section: 'section-metadata' },
+                { name: 'GPS', found: metadata.gps || metadata.exif?.gps || hasKey('gps'), section: 'section-metadata' },
+                { name: 'TIFF tags', found: metadata.exif?.tiff || hasKey('tiff'), section: 'section-metadata' },
+                { name: 'JPEG APP markers', found: hasJpegAppMarkers, section: 'section-structure-viz' },
+                { name: 'PNG text chunks', found: hasPngTextChunks, section: 'section-structure-viz' },
+                { name: 'Photoshop IRB', found: hasKey('photoshop', 'irb'), section: 'section-metadata' },
+                { name: 'MakerNote', found: hasKey('makernote', 'maker note'), section: 'section-metadata' },
+                { name: 'Thumbnail data', found: hasKey('thumbnail'), section: 'section-metadata' },
+                { name: 'IFD (Image File Directory)', found: hasKey('ifd'), section: 'section-metadata' },
+                { name: 'DNG raw metadata', found: hasKey('dng'), section: 'section-metadata' },
+                { name: 'Rights management', found: hasKey('copyright', 'rights'), section: 'section-metadata' },
+                { name: 'Descriptive keywords', found: hasKey('keyword', 'subject'), section: 'section-metadata' },
+                { name: 'Administrative data', found: hasKey('author', 'creator', 'artist'), section: 'section-metadata' },
+                { name: 'TechSpecs (ISO,etc.)', found: hasKey('iso', 'fnumber', 'exposure', 'shutter', 'aperture'), section: 'section-metadata' },
+                { name: 'PGP signature', found: false, section: 'section-full-object' },
+                { name: 'ComfyUI workflow JSON', found: hasWorkflowJson, section: aiSection },
+                { name: 'Prompt text files (.txt)', found: hasPromptTextChunk, section: aiSection },
+                { name: 'LoRA config JSON', found: hasLoraJson, section: aiSection },
+                { name: 'Model training YAML', found: hasYamlLike, section: aiSection },
+                { name: 'Checkpoint info JSON', found: hasCheckpointJson, section: aiSection },
+                { name: 'YAML prompt templates', found: hasYamlLike, section: aiSection },
+                { name: 'ControlNet JSON', found: hasControlNetJson, section: aiSection },
+                { name: 'A1111 .json prompts', found: hasA1111Json, section: aiSection },
+                { name: 'Metadata JSON embeds', found: hasJsonTextChunk, section: aiSection },
+                { name: 'Custom node configs YAML', found: hasYamlLike, section: aiSection },
+                { name: 'BatchGen logs TXT', found: false, section: aiSection },
+                { name: 'Upscale settings JSON', found: hasUpscaleJson, section: aiSection },
+                { name: 'Seed/history JSON', found: hasSeedHistoryJson, section: aiSection },
+                { name: 'AI metadata', found: metadata.aiMetadata?.hasComfyUI || metadata.aiMetadata?.hasStableDiffusion, section: aiSection },
+                { name: 'Wildcards', found: metadata.aiMetadata?.wildcards && metadata.aiMetadata.wildcards.length > 0, section: aiSection },
+                { name: 'Resolved prompt', found: metadata.aiMetadata?.resolvedPrompt, section: aiSection },
                 { name: 'Structure data', found: metadata.structure, section: 'section-structure' },
                 { name: 'Anomalies', found: metadata.anomalies && metadata.anomalies.flags && metadata.anomalies.flags.length > 0, section: 'section-anomalies' }
             ];
@@ -2225,7 +2528,11 @@
             
             for (const check of checks) {
                 if (check.found) {
-                    html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found" onclick="scrollToSection('${check.section}')" title="Click to jump to section">found</span></span> `;
+                    if (check.section) {
+                        html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found" onclick="scrollToSection('${check.section}')" title="Click to jump to section">found</span></span> `;
+                    } else {
+                        html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="found">found</span></span> `;
+                    }
                 } else {
                     html += `<span class="recap-item">${escapeHtml(check.name)}: <span class="not-found">not found</span></span> `;
                 }

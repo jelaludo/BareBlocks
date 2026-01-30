@@ -35,6 +35,12 @@ python bareblocks-cli.py photo.jpg --open-maps
 python bareblocks-gui.py
 ```
 
+#### Web App (Client-Side)
+```bash
+python -m http.server 8080
+# Open: http://localhost:8080/index.html
+```
+
 #### Other Tools
 ```bash
 # Remove metadata from image

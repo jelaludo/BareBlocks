@@ -1,6 +1,6 @@
 # 📸 BareBlocks - Comprehensive Metadata Tool  
 
-how to run from cursor : python run.py web
+how to run from cursor : python -m http.server 8080
 
 <p align="center">
   <img src="images/ExIF-Logo_BackgroundWhite.png" alt="GUI Screenshot" width="200">

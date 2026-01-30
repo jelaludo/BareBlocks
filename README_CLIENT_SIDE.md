@@ -4,8 +4,8 @@
 
 ## What Changed
 
-### Before (Python/Flask)
-- Required Python server
+### Before (Server-Based)
+- Required local server
 - Files uploaded to server for processing
 - Hosting costs: $5-20/month
 - Complex deployment
